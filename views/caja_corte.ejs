@@ -1,0 +1,31 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Corte de caja #<%= ses.id_sesion %></title>
+<style>body{font-family:'Courier New',monospace;font-size:12px;max-width:340px;margin:0 auto;padding:14px;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+h2,h3{text-align:center;margin:4px 0}hr{border:0;border-top:1px dashed #000;margin:8px 0}
+.r{display:flex;justify-content:space-between}.b{font-weight:bold}.c{text-align:center}
+table{width:100%;border-collapse:collapse;font-size:11px}td{padding:2px 0;vertical-align:top}td:last-child{text-align:right;white-space:nowrap}
+@media print{.np{display:none}@page{margin:4mm}}</style></head><body>
+<% const m = helpers.money; %>
+<div class="np c" style="margin-bottom:10px"><button onclick="print()">🖨️ Imprimir</button></div>
+<h2><%= APP_NAME %></h2><h3><%= ses.cerrada ? 'CORTE DE CAJA' : 'CORTE PARCIAL' %> #<%= ses.id_sesion %></h3><hr>
+<div class="r"><span>Cajero:</span><span><%= ses.cajero %></span></div>
+<div class="r"><span>Turno:</span><span><%= ses.turno %></span></div>
+<div class="r"><span>Apertura:</span><span><%= helpers.fmtDT(ses.abierta_at) %></span></div>
+<div class="r"><span>Cierre:</span><span><%= ses.cerrada ? helpers.fmtDT(ses.cerrada_at) : 'ABIERTA' %></span></div>
+<% if (ses.cerro) { %><div class="r"><span>Cerró:</span><span><%= ses.cerro %></span></div><% } %><hr>
+<div class="r"><span>Vehículos cobrados</span><span><%= vehiculosCobrados %></span></div>
+<div class="r"><span>Fondo inicial</span><span>$<%= m(ses.fondo_inicial) %></span></div>
+<div class="r"><span>Total ingresos</span><span>$<%= m(totIngresos) %></span></div>
+<div class="r"><span>Gastos</span><span>$<%= m(totGastos) %></span></div>
+<div class="r"><span>Retiros de efectivo</span><span>$<%= m(totRetiros) %></span></div>
+<div class="r b"><span>Ganancia del turno</span><span>$<%= m(neta) %></span></div><hr>
+<div class="r b"><span>Efectivo esperado</span><span>$<%= m(ses.efectivo_esperado != null ? ses.efectivo_esperado : resumen.efectivo_caja) %></span></div>
+<% if (ses.efectivo_contado != null) { %>
+<div class="r b"><span>Efectivo contado</span><span>$<%= m(ses.efectivo_contado) %></span></div>
+<div class="r b"><span>Diferencia</span><span><%= parseFloat(ses.diferencia) < 0 ? '−' : '' %>$<%= m(Math.abs(ses.diferencia)) %></span></div><% } %><hr>
+<div class="b">POR FORMA DE PAGO</div><table><% porMetodo.forEach(x => { %><tr><td><%= x.metodo_pago %></td><td>+<%= m(x.ingresos) %> / −<%= m(x.egresos) %></td></tr><% }) %></table><hr>
+<div class="b">POR CATEGORÍA</div><table><% porCategoria.forEach(x => { %><tr><td><%= x.categoria %> (<%= x.cnt %>)</td><td>+<%= m(x.ingresos) %> / −<%= m(x.egresos) %></td></tr><% }) %></table><hr>
+<div class="b">MOVIMIENTOS</div><table><% movimientos.forEach(x => { %><tr><td><%= String(x.fecha_hora).slice(11,16) %> <%= x.concepto %></td><td><%= x.tipo==='Ingreso'?'+':'−' %><%= m(x.monto) %></td></tr><% }) %></table><hr>
+<% if (ses.notas_cierre) { %><div>Notas: <%= ses.notas_cierre %></div><hr><% } %>
+<br><br><div class="c">_______________________<br>Firma del cajero</div>
+<br><br><div class="c">_______________________<br>Recibió</div>
+</body></html>

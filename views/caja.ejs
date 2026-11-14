@@ -1,0 +1,143 @@
+<%- include('partials/header') %>
+<% const m = helpers.money; %>
+
+<%- include('partials/ayuda', { titulo: 'Cómo funciona la caja', pasos: [
+  ['🔓 Abrir caja', 'Al empezar el turno cuenta el efectivo que hay en el cajón y captúralo como fondo inicial.'],
+  ['💵 Cobros', 'Cada salida cobrada y cada mensualidad de pensión entran solas a la caja abierta.'],
+  ['🧾 Gastos', 'Si pagas algo con dinero de la caja (agua, insumos, etc.) regístralo como gasto para que el corte cuadre.'],
+  ['🔒 Cerrar caja', 'Al terminar el turno cuenta el efectivo y captúralo. El sistema te dice si sobra o falta e imprime el corte.']
+] }) %>
+
+<% if (!sesActiva) { %>
+  <div class="card" style="max-width:480px;margin:0 auto 20px">
+    <div style="text-align:center;font-size:3rem">🔓</div>
+    <div class="card-title mb-8" style="text-align:center">Abrir caja</div>
+    <p class="text-muted text-sm mb-16" style="text-align:center">No hay ninguna caja abierta. Cuenta el efectivo del cajón para empezar el turno.</p>
+    <form method="POST"><input type="hidden" name="accion" value="abrir">
+      <div class="form-group"><label class="form-label" for="fondo">Fondo inicial (efectivo en el cajón)</label>
+        <input type="number" id="fondo" name="fondo" class="form-control" step="0.5" min="0" required value="<%= fondoSugerido %>" inputmode="decimal" autofocus style="font-size:1.4rem;font-weight:800;text-align:right">
+        <% if (fondoSugerido !== '') { %><div class="form-hint">Sugerido: lo que se contó en el último corte.</div><% } %></div>
+      <button class="btn btn-primary btn-block btn-lg">Abrir caja</button>
+    </form>
+  </div>
+<% } else { %>
+
+  <div class="flex-between mb-16">
+    <div><strong>Caja #<%= sesActiva.id_sesion %></strong> <span class="text-muted">· abierta por <%= sesActiva.cajero %> el <%= helpers.fmtDT(sesActiva.abierta_at) %> · turno <%= sesActiva.turno %></span></div>
+    <div class="flex gap-8">
+      <a class="btn btn-outline btn-sm" href="/caja/corte/<%= sesActiva.id_sesion %>" target="_blank">🖨️ Corte parcial</a>
+      <button class="btn btn-danger btn-sm" onclick="openModal('mCerrar')">🔒 Cerrar caja</button>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi verde"><div class="kpi-icon">💵</div><div class="kpi-label">Efectivo en caja</div><div class="kpi-val md">$<%= m(resumen.efectivo_caja) %></div><div class="kpi-sub">fondo de $<%= m(sesActiva.fondo_inicial) %> incluido</div></div>
+    <div class="kpi azul"><div class="kpi-icon">📈</div><div class="kpi-label">Ingresos del turno</div><div class="kpi-val md">$<%= m(totIngresos) %></div><div class="kpi-sub"><%= vehiculosCobrados %> vehículos cobrados</div></div>
+    <div class="kpi naranja"><div class="kpi-icon">🧾</div><div class="kpi-label">Gastos</div><div class="kpi-val md">$<%= m(totGastos) %></div><div class="kpi-sub">retiros: $<%= m(totRetiros) %></div></div>
+    <div class="kpi morado"><div class="kpi-icon">💳</div><div class="kpi-label">Por forma de pago</div>
+      <div class="text-sm" style="line-height:1.7"><% if (!porMetodo.length) { %>Sin movimientos<% } %><% porMetodo.forEach(x => { %><%= x.metodo_pago %>: <strong>$<%= m(x.ingresos) %></strong><br><% }) %></div></div>
+  </div>
+
+  <div class="grid-2 mb-20">
+    <div class="card"><div class="card-title mb-16">🧾 Registrar gasto</div>
+      <form method="POST"><input type="hidden" name="accion" value="gasto">
+        <div class="form-group"><label class="form-label">Concepto</label><input name="concepto" class="form-control" required maxlength="200" placeholder="Ej. Garrafón de agua"></div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Monto</label><input type="number" name="monto" class="form-control" step="0.01" min="0.01" required inputmode="decimal"></div>
+          <div class="form-group"><label class="form-label">Categoría</label><select name="categoria" class="form-control"><% CAT_EGRESO.forEach(c => { %><option><%= c %></option><% }) %></select></div>
+        </div>
+        <input type="hidden" name="metodo_pago" value="Efectivo">
+        <button class="btn btn-warning btn-block">Registrar gasto en efectivo</button>
+      </form></div>
+
+    <div class="card"><div class="card-title mb-16">➕ Otro ingreso</div>
+      <form method="POST"><input type="hidden" name="accion" value="ingreso">
+        <div class="form-group"><label class="form-label">Concepto</label><input name="concepto" class="form-control" required maxlength="200" placeholder="Ej. Lavado, sanitario"></div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Monto</label><input type="number" name="monto" class="form-control" step="0.01" min="0.01" required inputmode="decimal"></div>
+          <div class="form-group"><label class="form-label">Forma de pago</label><select name="metodo_pago" class="form-control"><% METODOS.forEach(c => { %><option><%= c %></option><% }) %></select></div>
+        </div>
+        <button class="btn btn-outline btn-block">Registrar ingreso</button>
+      </form>
+      <% if (admin) { %><button class="btn btn-ghost btn-block" style="margin-top:8px" onclick="openModal('mRetiro')">💰 Retirar efectivo de la caja</button><% } %>
+    </div>
+  </div>
+
+  <div class="card mb-20">
+    <div class="flex-between mb-12"><div class="card-title mb-0">Movimientos del turno (<%= movimientos.length %>)</div>
+      <input class="form-control" style="max-width:220px" placeholder="🔎 Buscar…" data-filtro="tblMov"></div>
+    <div class="table-wrap" style="max-height:440px;overflow:auto"><table id="tblMov"><thead><tr><th>Hora</th><th>Concepto</th><th>Categoría</th><th>Pago</th><th>Cajero</th><th class="text-right">Monto</th><% if (admin) { %><th></th><% } %></tr></thead><tbody>
+    <% movimientos.forEach(x => { %><tr class="<%= x.anulado ? 'tachado' : '' %>">
+      <td class="nowrap text-muted"><%= String(x.fecha_hora).slice(11,16) %></td>
+      <td><%= x.concepto %><% if (x.referencia) { %> <span class="text-xs text-muted">· <%= x.referencia %></span><% } %><% if (x.anulado) { %> <span class="text-xs">(anulado: <%= x.anulado_motivo %>)</span><% } %></td>
+      <td><span class="badge <%= x.tipo === 'Ingreso' ? 'b-verde' : (x.categoria === 'Retiro de efectivo' ? 'b-morado' : 'b-naranja') %>"><%= x.categoria %></span></td>
+      <td><%= x.metodo_pago %></td><td><%= x.cajero %></td>
+      <td class="text-right fw-bold" style="color:<%= x.tipo === 'Ingreso' ? 'var(--success)' : 'var(--danger)' %>"><%= x.tipo === 'Ingreso' ? '+' : '−' %>$<%= m(x.monto) %></td>
+      <% if (admin) { %><td class="text-right"><% if (!x.anulado) { %><button class="btn btn-ghost btn-sm" title="Anular movimiento" onclick="anular(<%= x.id_movimiento %>)">✖</button><% } %></td><% } %>
+    </tr><% }) %>
+    <% if (!movimientos.length) { %><tr><td colspan="7" class="text-muted" style="text-align:center;padding:18px">Todavía no hay movimientos en este turno.</td></tr><% } %>
+    </tbody></table></div>
+  </div>
+
+  <!-- Cerrar caja -->
+  <div class="modal-overlay" id="mCerrar"><div class="modal">
+    <div class="modal-header"><span class="modal-title">🔒 Cerrar caja #<%= sesActiva.id_sesion %></span><button class="modal-close" onclick="closeModal('mCerrar')">✕</button></div>
+    <form method="POST" onsubmit="return confirm('¿Cerrar la caja? Ya no se podrán agregar movimientos a este turno.')"><input type="hidden" name="accion" value="cerrar">
+      <% if (dentro > 0) { %><div class="alert alert-info">🚗 Quedan <strong><%= dentro %></strong> vehículos dentro. Se cobrarán en la siguiente caja.</div><% } %>
+      <div class="saldo-box mb-16"><span>Efectivo que debería haber</span><span class="sv" id="esperado" data-v="<%= resumen.efectivo_caja %>">$<%= m(resumen.efectivo_caja) %></span></div>
+      <div class="form-group"><label class="form-label" for="contado">Efectivo contado físicamente</label>
+        <input type="number" id="contado" name="efectivo_contado" class="form-control" step="0.5" min="0" required inputmode="decimal" style="font-size:1.4rem;font-weight:800;text-align:right">
+        <div class="form-hint" id="difTxt">&nbsp;</div></div>
+      <div class="form-group"><label class="form-label">Notas del turno <span class="text-muted">(opcional)</span></label><textarea name="notas" class="form-control" rows="2" maxlength="500"></textarea></div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closeModal('mCerrar')">Volver</button><button class="btn btn-danger">Cerrar caja</button></div>
+    </form>
+  </div></div>
+
+  <% if (admin) { %>
+  <div class="modal-overlay" id="mRetiro"><div class="modal">
+    <div class="modal-header"><span class="modal-title">💰 Retirar efectivo</span><button class="modal-close" onclick="closeModal('mRetiro')">✕</button></div>
+    <form method="POST"><input type="hidden" name="accion" value="retiro">
+      <p class="text-muted text-sm mb-16">Un retiro saca efectivo del cajón (por ejemplo, para depositarlo) pero no cuenta como gasto. Disponible: <strong>$<%= m(resumen.efectivo_caja) %></strong></p>
+      <div class="form-group"><label class="form-label">Monto</label><input type="number" name="monto" class="form-control" step="0.01" min="0.01" max="<%= resumen.efectivo_caja %>" required inputmode="decimal"></div>
+      <div class="form-group"><label class="form-label">Motivo</label><input name="motivo" class="form-control" required maxlength="160" placeholder="Ej. Depósito al banco"></div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closeModal('mRetiro')">Volver</button><button class="btn btn-primary">Registrar retiro</button></div>
+    </form>
+  </div></div>
+
+  <div class="modal-overlay" id="mAnular"><div class="modal">
+    <div class="modal-header"><span class="modal-title">Anular movimiento</span><button class="modal-close" onclick="closeModal('mAnular')">✕</button></div>
+    <form method="POST"><input type="hidden" name="accion" value="anular"><input type="hidden" name="id_movimiento" id="anId">
+      <p class="text-muted text-sm mb-16">El movimiento deja de contar en la caja y en los reportes. Si era el cobro de un vehículo, su ticket queda cancelado.</p>
+      <div class="form-group"><label class="form-label">Motivo</label><input name="motivo" class="form-control" required maxlength="200"></div>
+      <div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closeModal('mAnular')">Volver</button><button class="btn btn-danger">Anular</button></div>
+    </form>
+  </div></div>
+  <% } %>
+<% } %>
+
+<div class="card">
+  <div class="card-title mb-12">Cortes anteriores <% if (!admin) { %><span class="text-muted text-sm">· de hoy</span><% } %></div>
+  <div class="table-wrap"><table><thead><tr><th>Caja</th><th>Cajero</th><th>Apertura</th><th>Cierre</th><th class="text-right">Ingresos</th><th class="text-right">Esperado</th><th class="text-right">Contado</th><th class="text-right">Diferencia</th><th></th></tr></thead><tbody>
+  <% historial.forEach(s => { const d = parseFloat(s.diferencia) || 0; %><tr>
+    <td>#<%= s.id_sesion %></td><td><%= s.cajero %><% if (s.cerro && s.cerro !== s.cajero) { %> <span class="text-xs text-muted">(cerró <%= s.cerro %>)</span><% } %></td>
+    <td class="nowrap text-muted"><%= helpers.fmtDT(s.abierta_at) %></td><td class="nowrap text-muted"><%= helpers.fmtDT(s.cerrada_at) %></td>
+    <td class="text-right">$<%= m(s.total_ingresos) %></td><td class="text-right">$<%= m(s.efectivo_esperado) %></td><td class="text-right">$<%= m(s.efectivo_contado) %></td>
+    <td class="text-right"><span class="badge <%= Math.abs(d) < 0.01 ? 'b-verde' : (d > 0 ? 'b-azul' : 'b-rojo') %>"><%= Math.abs(d) < 0.01 ? 'Cuadra' : (d > 0 ? 'Sobran $' + m(d) : 'Faltan $' + m(-d)) %></span></td>
+    <td class="text-right"><a class="btn btn-ghost btn-sm" href="/caja/corte/<%= s.id_sesion %>" target="_blank" title="Imprimir corte">🖨️</a></td></tr><% }) %>
+  <% if (!historial.length) { %><tr><td colspan="9" class="text-muted" style="text-align:center;padding:18px">Sin cortes<%= admin ? '' : ' hoy' %>.</td></tr><% } %>
+  </tbody></table></div>
+</div>
+
+<script>
+function anular(id) { document.getElementById('anId').value = id; openModal('mAnular'); }
+(function () {
+  var c = document.getElementById('contado'); if (!c) return;
+  var esp = parseFloat(document.getElementById('esperado').dataset.v) || 0, out = document.getElementById('difTxt');
+  c.addEventListener('input', function () {
+    if (c.value === '') { out.innerHTML = '&nbsp;'; return; }
+    var d = Math.round(((parseFloat(c.value) || 0) - esp) * 100) / 100;
+    out.textContent = Math.abs(d) < 0.01 ? '✅ Cuadra exacto' : (d > 0 ? '🔵 Sobran $' + d.toFixed(2) : '🔴 Faltan $' + (-d).toFixed(2));
+  });
+})();
+</script>
+<%- include('partials/footer') %>

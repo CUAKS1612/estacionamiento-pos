@@ -1,0 +1,33 @@
+<%- include('partials/header') %>
+<div class="grid-2" style="align-items:start">
+  <div class="card">
+    <div class="card-title mb-16">⚙️ Datos del negocio</div>
+    <form method="POST">
+      <div class="form-group"><label class="form-label">Nombre del estacionamiento</label><input name="negocio_nombre" class="form-control" required maxlength="80" value="<%= conf.negocio_nombre %>"><div class="form-hint">Aparece en el menú, el login y los tickets.</div></div>
+      <div class="form-group"><label class="form-label">Dirección</label><input name="negocio_direccion" class="form-control" maxlength="200" value="<%= conf.negocio_direccion %>"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Teléfono</label><input name="negocio_telefono" class="form-control" maxlength="40" value="<%= conf.negocio_telefono %>"></div>
+        <div class="form-group"><label class="form-label">Horario</label><input name="negocio_horario" class="form-control" maxlength="120" value="<%= conf.negocio_horario %>" placeholder="Ej. Lun a Dom 7:00 a 22:00"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Cajones (capacidad)</label><input type="number" name="capacidad" class="form-control" min="1" max="5000" required value="<%= conf.capacidad %>" style="max-width:160px"><div class="form-hint">Con esto se calculan los lugares libres y la ocupación.</div></div>
+      <div class="form-group"><label class="form-label">Avisar que una pensión vence con… (días de anticipación)</label><input type="number" name="pension_aviso_dias" class="form-control" min="0" max="30" required value="<%= conf.pension_aviso_dias %>" style="max-width:160px"><div class="form-hint">Desde ese día aparece en la campanita 🔔 y en la pantalla del cajero.</div></div>
+      <div class="form-group"><label class="form-label">Leyenda al pie del ticket</label><textarea name="ticket_leyenda" class="form-control" rows="3" maxlength="400"><%= conf.ticket_leyenda %></textarea></div>
+      <button class="btn btn-primary">Guardar configuración</button>
+    </form>
+  </div>
+  <div class="card">
+    <div class="card-title mb-12">🧾 Así se ve el encabezado del ticket</div>
+    <div style="font-family:'Courier New',monospace;text-align:center;border:1px dashed var(--border);border-radius:8px;padding:16px;background:#fff;max-width:300px;margin:0 auto">
+      <div style="font-weight:bold;font-size:16px"><%= conf.negocio_nombre %></div>
+      <% if (conf.negocio_direccion) { %><div style="font-size:11px"><%= conf.negocio_direccion %></div><% } %>
+      <% if (conf.negocio_telefono) { %><div style="font-size:11px">Tel. <%= conf.negocio_telefono %></div><% } %>
+      <% if (conf.negocio_horario) { %><div style="font-size:11px"><%= conf.negocio_horario %></div><% } %>
+      <hr style="border:0;border-top:1px dashed #000;margin:8px 0">
+      <div>BOLETO DE ENTRADA</div><div style="font-size:22px;font-weight:bold">T-000001</div>
+      <hr style="border:0;border-top:1px dashed #000;margin:8px 0">
+      <div style="font-size:11px"><%= conf.ticket_leyenda %></div>
+    </div>
+    <p class="text-muted text-sm" style="margin-top:14px">Las tarifas, la tolerancia y el cargo por boleto perdido se cambian en <a href="/tarifas">Tarifas</a>.</p>
+  </div>
+</div>
+<%- include('partials/footer') %>

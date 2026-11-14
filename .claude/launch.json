@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "Estacionamiento POS", "runtimeExecutable": "node", "runtimeArgs": ["app.js"], "port": 3002 }
+  ]
+}

@@ -1,0 +1,148 @@
+<%- include('partials/header') %>
+<% const m = helpers.money; const tol = parseInt(conf.tolerancia_min) || 0; const hora = parseFloat(conf.tarifa_hora) || 0;
+   const pct = capacidad ? Math.min(100, Math.round(activos.length / capacidad * 100)) : 0; %>
+
+<%- include('partials/ayuda', { titulo: 'Cómo se usa esta pantalla', pasos: [
+  ['🚘 Llega un vehículo', 'Escribe las placas (es lo único obligatorio) y presiona <strong>Registrar entrada</strong>. El nombre es opcional. Sale el ticket para entregárselo al cliente.'],
+  ['💵 El cliente se va', 'Búscalo por placas o por el folio del ticket y presiona <strong>Cobrar</strong>. La pantalla te dice cuánto es y cuánto cambio dar.'],
+  ['⏱️ Cómo se cobra', 'Los primeros ' + tol + ' minutos son de tolerancia. Después se cobran $' + m(conf.tarifa_hora, 0) + ' por la primera hora y, pasando los 60 minutos, el monto sube minuto a minuto: ' + m(hora + 1, 0) + ', ' + m(hora + 2, 0) + ', ' + m(hora + 3, 0) + '… Es la misma tarifa para todos los vehículos.'],
+  ['🎫 Boleto perdido', 'Búscalo por placas. En la pantalla de cobro marca <strong>Boleto perdido</strong> y se suma el cargo de $' + m(conf.cargo_boleto_perdido, 0) + '.'],
+  ['📇 Pensionados', 'Si las placas tienen pensión vigente el sistema lo detecta solo: entran y salen sin cobro. Cuando su pensión está por vencer te avisa al registrar la entrada, para que se lo recuerdes al cliente.']
+] }) %>
+
+<% const avP = locals.avisosPension || []; if (avP.length) { const venc = avP.filter(a => a.dias < 0).length; %>
+  <a href="/pensiones" class="aviso-pen mb-16">
+    <span class="ap-ico">🔔</span>
+    <span><strong><%= avP.length %> pensi<%= avP.length === 1 ? 'ón necesita' : 'ones necesitan' %> cobro</strong><%= venc ? ' · ' + venc + ' ya vencida' + (venc === 1 ? '' : 's') : '' %><br>
+      <small><%= avP.slice(0, 4).map(a => a.placas + ' (' + (a.dias < 0 ? 'vencida' : (a.dias === 0 ? 'hoy' : 'en ' + a.dias + ' d')) + ')').join(' · ') %><%= avP.length > 4 ? ' · y ' + (avP.length - 4) + ' más' : '' %></small></span>
+    <span class="ap-ir">Ver y cobrar →</span>
+  </a>
+<% } %>
+
+<% if (!sesionCaja) { %>
+  <div class="warn-box mb-16">⚠️ <strong>La caja está cerrada.</strong> Puedes registrar entradas, pero para cobrar salidas primero <a href="/caja">abre la caja</a>.</div>
+<% } %>
+
+<div class="kpi-grid">
+  <div class="kpi <%= pct >= 90 ? 'rojo' : (pct >= 70 ? 'amarillo' : 'verde') %>">
+    <div class="kpi-icon">🅿️</div><div class="kpi-label">Lugares libres</div>
+    <div class="kpi-val md"><%= libres %> <span class="text-sm text-muted">de <%= capacidad %></span></div>
+    <div class="ocup <%= pct >= 90 ? 'alta' : (pct >= 70 ? 'media' : '') %>"><span style="width:<%= pct %>%"></span></div>
+  </div>
+  <div class="kpi morado"><div class="kpi-icon">🚗</div><div class="kpi-label">Vehículos dentro</div><div class="kpi-val md"><%= activos.length %></div><div class="kpi-sub"><%= pct %>% de ocupación</div></div>
+  <div class="kpi azul"><div class="kpi-icon">↔️</div><div class="kpi-label">Movimiento de hoy</div><div class="kpi-val md"><%= hoy.entradas %> <span class="text-sm text-muted">entradas</span></div><div class="kpi-sub"><%= hoy.salidas %> salidas cobradas</div></div>
+  <div class="kpi verde"><div class="kpi-icon">💰</div><div class="kpi-label">Cobrado hoy</div><div class="kpi-val md">$<%= m(hoy.cobrado) %></div><div class="kpi-sub">solo estacionamiento</div></div>
+</div>
+
+<div class="grid-op mb-20">
+  <!-- ── Entrada ── -->
+  <div class="card">
+    <div class="card-title mb-16">🚘 Registrar entrada</div>
+    <% if (!tarifas.length) { %>
+      <div class="alert alert-warning">No hay tarifas activas. Pide al administrador que las configure.</div>
+    <% } else { %>
+    <form method="POST" action="/operacion/entrada" id="formEntrada" autocomplete="off">
+      <div class="form-group">
+        <label class="form-label" for="placas">Placas <span class="text-danger">*</span></label>
+        <input id="placas" name="placas" class="form-control placa-input" required minlength="3" maxlength="12" placeholder="ABC-123-D" autofocus inputmode="text" spellcheck="false">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tipo de vehículo <span class="text-muted">(todos pagan $<%= m(hora, 0) %> la hora)</span></label>
+        <div class="tipo-grid">
+          <% tarifas.forEach((t, i) => { %>
+          <label class="tipo-op"><input type="radio" name="id_tarifa" value="<%= t.id_tarifa %>" <%= i === 0 ? 'checked' : '' %>>
+            <span class="caja"><span class="ico"><%= t.icono %></span><span class="nom"><%= t.nombre %></span></span></label>
+          <% }) %>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="cliente">Nombre <span class="text-muted">(opcional)</span></label>
+        <input id="cliente" name="cliente" class="form-control" maxlength="120" placeholder="Nombre de quien deja el vehículo">
+      </div>
+      <button class="btn btn-primary btn-block btn-lg">Registrar entrada e imprimir ticket</button>
+      <% if (libres === 0) { %><div class="form-hint text-danger" style="margin-top:8px">⚠️ El estacionamiento está lleno según la capacidad configurada.</div><% } %>
+    </form>
+    <% } %>
+  </div>
+
+  <!-- ── Vehículos dentro ── -->
+  <div class="card">
+    <div class="flex-between mb-12">
+      <div class="card-title mb-0">🅿️ Vehículos dentro (<%= activos.length %>)</div>
+      <input class="form-control" id="buscar" style="max-width:240px" placeholder="🔎 Placas o folio…" data-filtro="tblDentro" autocomplete="off" title="Escribe y presiona Enter para cobrar">
+    </div>
+    <div class="table-wrap" style="max-height:520px;overflow:auto"><table id="tblDentro"><thead><tr><th>Vehículo</th><th>Entrada</th><th>Tiempo</th><th class="text-right">Lleva</th><th></th></tr></thead><tbody>
+    <% activos.forEach(v => { %><tr data-id="<%= v.id_ticket %>">
+      <td><span class="placa"><%= v.placas %></span><br><span class="text-xs text-muted"><%= v.icono || '' %> <%= v.tipo_vehiculo %><%= v.cliente ? ' · ' + v.cliente : '' %> · <%= v.folio %></span></td>
+      <td class="nowrap text-muted"><%= String(v.entrada_at).slice(0,10) === helpers.hoy() ? String(v.entrada_at).slice(11,16) : helpers.fmtDT(v.entrada_at) %></td>
+      <td class="nowrap" data-seg="<%= v.seg %>"></td>
+      <% if (v.tipo_cobro === 'Pension') { %>
+        <td class="text-right"><span class="badge b-morado">📇 Pensión</span></td>
+      <% } else { %>
+        <td class="text-right fw-bold" data-seg-monto="<%= v.seg %>">$<%= m(v.monto, 0) %></td>
+      <% } %>
+      <td class="nowrap text-right">
+        <a class="btn btn-success btn-sm" href="/operacion/cobrar/<%= v.id_ticket %>">Cobrar</a>
+        <a class="btn btn-ghost btn-sm" href="/operacion/ticket/<%= v.id_ticket %>" target="_blank" title="Reimprimir ticket">🖨️</a>
+        <% if (user.id_rol === ROL_ADMIN) { %><button class="btn btn-ghost btn-sm" title="Cancelar ticket" onclick="cancelar(<%= v.id_ticket %>, '<%= v.placas %>')">✖</button><% } %>
+      </td></tr><% }) %>
+    </tbody></table>
+    <% if (!activos.length) { %><div class="empty-state"><div class="ico">🅿️</div><p>No hay vehículos dentro.</p></div><% } %>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title mb-12">Últimas salidas de hoy</div>
+  <div class="table-wrap"><table><thead><tr><th>Vehículo</th><th>Entrada</th><th>Salida</th><th>Tiempo</th><th>Pago</th><th class="text-right">Cobrado</th><th></th></tr></thead><tbody>
+  <% ultimas.forEach(h => { %><tr>
+    <td><span class="placa"><%= h.placas %></span> <span class="text-xs text-muted"><%= h.tipo_vehiculo %><%= h.cliente ? ' · ' + h.cliente : '' %> · <%= h.folio %></span></td>
+    <td class="nowrap text-muted"><%= String(h.entrada_at).slice(11,16) %></td><td class="nowrap text-muted"><%= String(h.salida_at).slice(11,16) %></td>
+    <td class="nowrap"><%= fmtTiempo(h.minutos) %></td>
+    <td><%= h.tipo_cobro === 'Pension' ? 'Pensión' : (h.metodo_pago || 'Sin cobro') %><%= h.boleto_perdido ? ' · boleto perdido' : '' %></td>
+    <td class="text-right fw-bold">$<%= m(h.monto_cobrado) %></td>
+    <td class="text-right"><a class="btn btn-ghost btn-sm" href="/operacion/ticket/<%= h.id_ticket %>" target="_blank" title="Reimprimir comprobante">🖨️</a></td></tr><% }) %>
+  <% if (!ultimas.length) { %><tr><td colspan="7" class="text-muted" style="text-align:center;padding:18px">Todavía no hay salidas hoy.</td></tr><% } %>
+  </tbody></table></div>
+</div>
+
+<% if (user.id_rol === ROL_ADMIN) { %>
+<div class="modal-overlay" id="mCancelar"><div class="modal">
+  <div class="modal-header"><span class="modal-title">Cancelar ticket <span id="cPlaca"></span></span><button class="modal-close" onclick="closeModal('mCancelar')">✕</button></div>
+  <form method="POST" id="fCancelar">
+    <p class="text-muted text-sm mb-16">Úsalo cuando la entrada se registró por error. El ticket queda cancelado y no se cobra.</p>
+    <div class="form-group"><label class="form-label">Motivo</label><input name="motivo" class="form-control" required maxlength="200"></div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closeModal('mCancelar')">Volver</button><button class="btn btn-danger">Cancelar ticket</button></div>
+  </form>
+</div></div>
+<% } %>
+
+<% if (imprimir) { %><iframe class="impresor" src="/operacion/ticket/<%= imprimir %>" title="Impresión del ticket"></iframe><% } %>
+
+<script>
+var TOL = <%= tol %>, HORA = <%= hora %>, T0 = Date.now();
+function segAhora(el, attr) { return parseInt(el.getAttribute(attr), 10) + Math.round((Date.now() - T0) / 1000); }
+function pintar() {
+  document.querySelectorAll('[data-seg]').forEach(function (el) { el.textContent = fmtTiempo(segAhora(el, 'data-seg') / 60); });
+  document.querySelectorAll('[data-seg-monto]').forEach(function (el) {
+    var monto = calcularMonto(segAhora(el, 'data-seg-monto') / 60, HORA, TOL);
+    el.textContent = monto > 0 ? '$' + monto.toLocaleString('es-MX') : 'Tolerancia';
+  });
+}
+pintar(); setInterval(pintar, 10000);   // el monto sube cada minuto
+
+// Enter en el buscador: si queda un solo vehículo, va directo a cobrarlo
+document.getElementById('buscar').addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter') return;
+  var filas = [].filter.call(document.querySelectorAll('#tblDentro tbody tr'), function (tr) { return tr.style.display !== 'none'; });
+  if (filas.length === 1) location.href = '/operacion/cobrar/' + filas[0].dataset.id;
+});
+var inpPlacas = document.getElementById('placas');
+if (inpPlacas) inpPlacas.addEventListener('input', function () { this.value = this.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''); });
+function cancelar(id, placa) {
+  document.getElementById('cPlaca').textContent = placa;
+  document.getElementById('fCancelar').action = '/operacion/cancelar/' + id;
+  openModal('mCancelar');
+}
+</script>
+<%- include('partials/footer') %>

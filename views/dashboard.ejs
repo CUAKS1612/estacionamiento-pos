@@ -1,0 +1,182 @@
+<%- include('partials/header') %>
+<%
+const m = helpers.money;
+// ── Mapa: un cuadro por cajón (si son muchos, cada cuadro agrupa varios) ──
+const MAX_CELDAS = 140;
+const porCelda = Math.max(1, Math.ceil(kpi.capacidad / MAX_CELDAS));
+const celdas = Math.max(1, Math.ceil(kpi.capacidad / porCelda));
+const ocupadas = Math.min(celdas, Math.ceil(activos.length / porCelda));
+const claseTiempo = mins => mins >= 240 ? 't3' : (mins >= 60 ? 't2' : '');
+// ── Anillo ──
+const RADIO = 80, CIRC = 2 * Math.PI * RADIO;
+const colorAnillo = kpi.ocupacion >= 90 ? '#f9735b' : (kpi.ocupacion >= 70 ? '#fbbf24' : '#0ea5e9');
+// ── Barra de dinero ──
+const partes = [['s1', 'Estacionamiento', kpi.estac], ['s2', 'Pensiones', kpi.pension], ['s3', 'Otros', kpi.otros]].filter(p => p[2] > 0);
+const pctGasto = kpi.ingresos > 0 ? Math.min(100, kpi.gastos / kpi.ingresos * 100) : (kpi.gastos > 0 ? 100 : 0);
+// ── Horas pico ──
+const maxHora = Math.max(...porHora, 0);
+const horaPico = maxHora > 0 ? porHora.indexOf(maxHora) : -1;
+const fmtHora = h => (h % 12 || 12) + (h < 12 ? ' a.m.' : ' p.m.');
+const maxTipo = Math.max(...porTipo.map(t => parseFloat(t.total) || 0), 1);
+const maxCajero = Math.max(...porCajero.map(c => parseFloat(c.total) || 0), 1);
+const largos = activos.slice(0, 5), maxLargo = Math.max(...largos.map(a => a.mins), 1);
+%>
+
+<!-- ══ Ahora mismo ══ -->
+<div class="dash-hero">
+  <div class="lote">
+    <div class="lote-head">
+      <div><h2>Tu estacionamiento ahora</h2><p><%= kpi.dentro %> vehículo<%= kpi.dentro === 1 ? '' : 's' %> dentro · <%= Math.max(0, kpi.capacidad - kpi.dentro) %> lugares libres</p></div>
+      <div class="lote-ley">
+        <span><i style="background:#7dd3fc"></i>Menos de 1 h</span><span><i style="background:#fde68a"></i>1 a 4 h</span>
+        <span><i style="background:#f9735b"></i>Más de 4 h</span><span><i style="background:#fff"></i>Pensión</span>
+      </div>
+    </div>
+    <div class="lote-grid">
+      <% for (let i = 0; i < celdas; i++) {
+           const v = porCelda === 1 ? activos[i] : null;
+           if (v) { %><div class="cajon occ <%= v.tipo_cobro === 'Pension' ? 'pen' : claseTiempo(v.mins) %>" data-tip="<%= v.placas %><%= v.cliente ? ' · ' + v.cliente : '' %> · <%= fmtTiempo(v.mins) %>"><%= v.icono || '🚗' %></div>
+        <% } else if (i < ocupadas) { %><div class="cajon occ">🚗</div>
+        <% } else { %><div class="cajon"></div><% } } %>
+    </div>
+    <div class="lote-nota"><%= porCelda > 1 ? 'Cada cuadro representa ' + porCelda + ' cajones. ' : 'Pasa el cursor sobre un vehículo para ver sus placas y el tiempo que lleva. ' %>Se acomodan por orden de llegada, no por lugar físico.</div>
+  </div>
+
+  <div class="card medidor">
+    <div class="anillo">
+      <svg viewBox="0 0 190 190" aria-hidden="true">
+        <circle class="fondo" cx="95" cy="95" r="<%= RADIO %>"></circle>
+        <circle class="valor" cx="95" cy="95" r="<%= RADIO %>" stroke="<%= colorAnillo %>" stroke-dasharray="<%= CIRC.toFixed(1) %>" stroke-dashoffset="<%= (CIRC * (1 - kpi.ocupacion / 100)).toFixed(1) %>"></circle>
+      </svg>
+      <div class="centro"><strong><%= kpi.ocupacion %>%</strong><span>ocupación</span></div>
+    </div>
+    <div class="medidor-datos">
+      <div><b><%= kpi.dentro %></b>dentro</div>
+      <div><b><%= Math.max(0, kpi.capacidad - kpi.dentro) %></b>libres</div>
+      <div><b><%= kpi.capacidad %></b>cajones</div>
+    </div>
+    <% if (caja) { %>
+      <a href="/caja" class="caja-chip on"><span>💵 Caja #<%= caja.id_sesion %> · <%= caja.cajero %><br><small>abierta desde las <%= String(caja.abierta_at).slice(11,16) %></small></span><b>$<%= m(caja.efectivo_caja) %></b></a>
+    <% } else { %>
+      <a href="/caja" class="caja-chip off"><span>⚠️ Caja cerrada<br><small>nadie está cobrando</small></span><b>Abrir →</b></a>
+    <% } %>
+  </div>
+</div>
+
+<%- include('partials/periodo', { rango }) %>
+
+<!-- ══ Dinero del periodo ══ -->
+<div class="dash-2">
+  <div class="card">
+    <div class="dinero-top">
+      <div><small>Ingresos · <%= rango.etiqueta %></small><div class="gran">$<%= m(kpi.ingresos) %></div></div>
+      <div class="neta <%= kpi.neta < 0 ? 'neg' : '' %>"><small>Te quedan (ya sin gastos)</small><div class="gran"><%= kpi.neta < 0 ? '−' : '' %>$<%= m(Math.abs(kpi.neta)) %></div></div>
+    </div>
+    <div class="barra" title="De dónde vino el dinero">
+      <% partes.forEach(p => { %><span class="<%= p[0] %>" style="flex-grow:<%= p[2] %>"><%= Math.round(p[2] / kpi.ingresos * 100) %>%</span><% }) %>
+    </div>
+    <div class="barra delgada" title="Gastos comparados con los ingresos"><span class="sg" style="flex-grow:0;width:<%= pctGasto.toFixed(1) %>%"></span></div>
+    <div class="barra-ley">
+      <span><i style="background:#0ea5e9"></i>Estacionamiento <b>$<%= m(kpi.estac) %></b></span>
+      <span><i style="background:#075985"></i>Pensiones <b>$<%= m(kpi.pension) %></b></span>
+      <% if (kpi.otros > 0) { %><span><i style="background:#7dd3fc"></i>Otros <b>$<%= m(kpi.otros) %></b></span><% } %>
+      <span><i style="background:#f9735b"></i>Gastos <b>$<%= m(kpi.gastos) %></b></span>
+    </div>
+    <div class="chart-box sm" style="margin-top:18px"><canvas id="chDia"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title mb-16">¿Qué vehículos dejan más?</div>
+    <% if (porTipo.length) { %>
+    <ul class="filas">
+      <% porTipo.forEach(t => { %><li>
+        <span class="ico"><%= t.icono || '🚗' %></span>
+        <div><div class="nom"><span><%= t.tipo_vehiculo %></span><small><%= t.n %> salida<%= t.n === 1 ? '' : 's' %></small></div>
+          <div class="pista"><span style="width:<%= Math.max(3, (parseFloat(t.total) || 0) / maxTipo * 100).toFixed(1) %>%"></span></div></div>
+        <span class="val">$<%= m(t.total, 0) %></span></li><% }) %>
+    </ul>
+    <% } else { %><div class="empty-state"><div class="ico">🚗</div><p>Sin salidas cobradas en el periodo.</p></div><% } %>
+    <div class="dato-pico" style="margin:20px 0 0;padding-top:16px;border-top:1px solid var(--hair)">
+      <div><b><%= kpi.entradas %></b>entradas</div>
+      <div><b><%= fmtTiempo(kpi.estancia) %></b>estancia típica</div>
+      <div><b>$<%= m(kpi.ticketProm, 0) %></b>cobro promedio</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Horas pico ══ -->
+<div class="card mb-20">
+  <div class="flex-between mb-12">
+    <div class="card-title mb-0">¿A qué hora llegan?</div>
+    <% if (horaPico >= 0) { %><span class="badge b-naranja">🔥 Hora pico: <%= fmtHora(horaPico) %> · <%= maxHora %> entrada<%= maxHora === 1 ? '' : 's' %></span><% } %>
+  </div>
+  <div class="calor">
+    <% porHora.forEach((n, h) => { const a = maxHora ? n / maxHora : 0; %>
+      <div class="<%= n ? '' : 'vacia' %> <%= h === horaPico ? 'pico' : '' %>" title="<%= fmtHora(h) %>: <%= n %> entrada<%= n === 1 ? '' : 's' %>"
+           style="<%= n ? 'background:rgba(2,132,199,' + (0.25 + a * 0.75).toFixed(2) + ')' : '' %>"><%= n %></div>
+    <% }) %>
+  </div>
+  <div class="calor-eje"><% for (let h = 0; h < 24; h++) { %><span><%= h %>h</span><% } %></div>
+</div>
+
+<!-- ══ Personas y pendientes ══ -->
+<div class="dash-3">
+  <div class="card">
+    <div class="card-title mb-16">Cobrado por cajero</div>
+    <% if (porCajero.length) { %>
+    <ul class="filas">
+      <% porCajero.forEach(c => { %><li>
+        <span class="ico"><%= String(c.nombre).charAt(0).toUpperCase() %></span>
+        <div><div class="nom"><span><%= c.nombre %></span><small><%= c.n %> cobro<%= c.n === 1 ? '' : 's' %></small></div>
+          <div class="pista"><span style="width:<%= Math.max(3, (parseFloat(c.total) || 0) / maxCajero * 100).toFixed(1) %>%"></span></div></div>
+        <span class="val">$<%= m(c.total, 0) %></span></li><% }) %>
+    </ul>
+    <% } else { %><p class="text-muted text-sm">Sin cobros en el periodo.</p><% } %>
+    <% if (porMetodo.length) { %>
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--hair);display:flex;gap:8px;flex-wrap:wrap">
+      <% const ICO = { Efectivo: '💵', Tarjeta: '💳', Transferencia: '📲' }; porMetodo.forEach(x => { %><span class="badge b-azul"><%= ICO[x.metodo_pago] || '' %> <%= x.metodo_pago %> $<%= m(x.total, 0) %></span><% }) %>
+    </div>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <div class="flex-between mb-16"><div class="card-title mb-0">Los que más tiempo llevan</div><a href="/operacion" class="btn btn-ghost btn-sm">Ver todos</a></div>
+    <% if (largos.length) { %>
+    <ul class="filas">
+      <% largos.forEach(a => { %><li>
+        <span class="ico"><%= a.icono || '🚗' %></span>
+        <div><div class="nom"><span class="placa"><%= a.placas %></span><small><%= a.tipo_cobro === 'Pension' ? 'Pensión' : a.tipo_vehiculo %></small></div>
+          <div class="pista <%= a.mins >= 240 ? 'coral' : '' %>"><span style="width:<%= Math.max(4, a.mins / maxLargo * 100).toFixed(1) %>%"></span></div></div>
+        <span class="val"><%= fmtTiempo(a.mins) %></span></li><% }) %>
+    </ul>
+    <% } else { %><div class="empty-state"><div class="ico">🅿️</div><p>No hay vehículos dentro.</p></div><% } %>
+  </div>
+
+  <div class="card">
+    <div class="flex-between mb-16"><div class="card-title mb-0">Últimos cortes</div><a href="/caja" class="btn btn-ghost btn-sm">Ver todos</a></div>
+    <% if (cortes.length) { %>
+    <ul class="linea">
+      <% cortes.slice(0, 4).forEach(s => { const d = parseFloat(s.diferencia) || 0; %>
+      <li class="<%= Math.abs(d) < 0.01 ? '' : (d > 0 ? 'sobra' : 'falta') %>">
+        <div class="lt"><a href="/caja/corte/<%= s.id_sesion %>" target="_blank"><strong>Caja #<%= s.id_sesion %></strong> · <%= s.cajero %></a><strong>$<%= m(s.total_ingresos, 0) %></strong></div>
+        <small><%= helpers.fmtDT(s.cerrada_at) %> · <%= Math.abs(d) < 0.01 ? 'cuadró' : (d > 0 ? 'sobraron $' + m(d) : 'faltaron $' + m(-d)) %></small></li>
+      <% }) %>
+    </ul>
+    <% } else { %><p class="text-muted text-sm">Aún no hay cortes.</p><% } %>
+    <% if (penVencen.length) { %>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--hair)">
+      <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Pensiones por cobrar</div>
+      <% penVencen.slice(0, 4).forEach(p => { %><a href="/pensiones" class="badge <%= p.dias < 0 ? 'b-rojo' : 'b-amarillo' %>" style="margin:0 6px 6px 0;text-decoration:none"><%= p.placas %> · <%= p.dias < 0 ? 'vencida' : (p.dias === 0 ? 'hoy' : 'en ' + p.dias + ' d') %></a><% }) %>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+const SERIE = <%- JSON.stringify(serie) %>;
+rjChart('chDia', 'line', SERIE.map(s => s.f.slice(8,10) + '/' + s.f.slice(5,7)), [
+  { label: 'Ingresos', data: SERIE.map(s => s.ingresos), color: '#0ea5e9' },
+  { label: 'Gastos', data: SERIE.map(s => s.gastos), color: '#f9735b', fill: false },
+], { money: true });
+</script>
+<%- include('partials/footer') %>

@@ -1,0 +1,60 @@
+<%- include('partials/header') %>
+
+<%- include('partials/ayuda', { titulo: 'Qué puede hacer cada rol', pasos: [
+  ['👑 Administrador', 'Ve todo: dashboard, historial, cortes de todos los días, tarifas, usuarios y configuración. También puede cobrar, retirar efectivo, anular movimientos y cancelar tickets.'],
+  ['💵 Cajero', 'Registra entradas, cobra salidas y mensualidades, abre y cierra la caja y captura gastos. No ve reportes ni puede cambiar tarifas.'],
+  ['🔑 Contraseñas', 'Cada quien puede cambiar la suya desde el menú de arriba a la derecha. Aquí puedes ponerle una nueva a cualquiera.']
+] }) %>
+
+<div class="card mb-20">
+  <div class="flex-between mb-12"><div class="card-title mb-0">👥 Usuarios</div><button class="btn btn-primary" onclick="editar(null)">+ Nuevo usuario</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Último acceso</th><th>Estado</th><th></th></tr></thead><tbody>
+  <% usuarios.forEach(u => { %><tr style="<%= u.activo ? '' : 'opacity:.55' %>">
+    <td><strong><%= u.nombre %></strong><% if (u.id_usuario === yo) { %> <span class="badge b-gris">Tú</span><% } %></td>
+    <td><code><%= u.usuario %></code></td>
+    <td><span class="badge <%= u.id_rol === ROL_ADMIN ? 'b-morado' : 'b-azul' %>"><%= u.id_rol === ROL_ADMIN ? '👑' : '💵' %> <%= u.nombre_rol %></span></td>
+    <td class="text-muted nowrap"><%= u.ultimo_acceso ? helpers.fmtDT(u.ultimo_acceso) : 'Nunca' %></td>
+    <td><span class="badge <%= u.activo ? 'b-verde' : 'b-rojo' %>"><%= u.activo ? 'Activo' : 'Dado de baja' %></span></td>
+    <td class="text-right nowrap">
+      <button class="btn btn-ghost btn-sm" data-u="<%= JSON.stringify({ id_usuario: u.id_usuario, nombre: u.nombre, usuario: u.usuario, id_rol: u.id_rol }) %>" onclick="editar(this)">✏️ Editar</button>
+      <% if (u.id_usuario !== yo) { %>
+      <form method="POST" style="display:inline" <%- u.activo ? `onsubmit="return confirm('¿Dar de baja a este usuario? Ya no podrá entrar.')"` : '' %>><input type="hidden" name="accion" value="activar"><input type="hidden" name="id_usuario" value="<%= u.id_usuario %>"><input type="hidden" name="activo" value="<%= u.activo ? 0 : 1 %>">
+        <button class="btn btn-ghost btn-sm"><%= u.activo ? 'Dar de baja' : 'Reactivar' %></button></form>
+      <% } %>
+    </td></tr><% }) %>
+  </tbody></table></div>
+</div>
+
+<div class="card">
+  <div class="card-title mb-12">📋 Bitácora <span class="text-muted text-sm">· últimas acciones importantes</span></div>
+  <div class="table-wrap" style="max-height:380px;overflow:auto"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>
+  <% bitacora.forEach(a => { %><tr><td class="nowrap text-muted"><%= helpers.fmtDT(a.fecha_hora) %></td><td><%= a.nombre || '—' %></td><td><span class="badge b-gris"><%= a.accion %></span></td><td class="text-sm"><%= a.detalle || '' %></td></tr><% }) %>
+  <% if (!bitacora.length) { %><tr><td colspan="4" class="text-muted" style="text-align:center;padding:18px">Sin registros todavía.</td></tr><% } %>
+  </tbody></table></div>
+</div>
+
+<div class="modal-overlay" id="mUsuario"><div class="modal">
+  <div class="modal-header"><span class="modal-title" id="uTitulo">Usuario</span><button class="modal-close" onclick="closeModal('mUsuario')">✕</button></div>
+  <form method="POST" id="fUsuario" autocomplete="off"><input type="hidden" name="accion" value="guardar"><input type="hidden" name="id_usuario">
+    <div class="form-group"><label class="form-label">Nombre de la persona</label><input name="nombre" class="form-control" required maxlength="120" placeholder="Ej. Juan Pérez"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Usuario para entrar</label><input name="usuario" class="form-control" required minlength="3" maxlength="40" pattern="[A-Za-z0-9._\-]+" placeholder="Ej. juan" autocapitalize="none"><div class="form-hint">Sin espacios.</div></div>
+      <div class="form-group"><label class="form-label">Rol</label><select name="id_rol" class="form-control"><option value="<%= ROL_CAJERO %>">💵 Cajero</option><option value="<%= ROL_ADMIN %>">👑 Administrador</option></select></div>
+    </div>
+    <div class="form-group"><label class="form-label" id="uPassLbl">Contraseña</label><input type="password" name="password" class="form-control" minlength="6" autocomplete="new-password"><div class="form-hint" id="uPassHint">Mínimo 6 caracteres.</div></div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closeModal('mUsuario')">Volver</button><button class="btn btn-primary">Guardar</button></div>
+  </form>
+</div></div>
+
+<script>
+function editar(btn) {
+  var f = document.getElementById('fUsuario'), u = btn ? JSON.parse(btn.dataset.u) : null;
+  document.getElementById('uTitulo').textContent = u ? 'Editar usuario' : 'Nuevo usuario';
+  f.id_usuario.value = u ? u.id_usuario : ''; f.nombre.value = u ? u.nombre : ''; f.usuario.value = u ? u.usuario : '';
+  f.id_rol.value = u ? u.id_rol : '<%= ROL_CAJERO %>'; f.password.value = ''; f.password.required = !u;
+  document.getElementById('uPassLbl').textContent = u ? 'Nueva contraseña (opcional)' : 'Contraseña';
+  document.getElementById('uPassHint').textContent = u ? 'Déjala vacía para no cambiarla.' : 'Mínimo 6 caracteres.';
+  openModal('mUsuario');
+}
+</script>
+<%- include('partials/footer') %>

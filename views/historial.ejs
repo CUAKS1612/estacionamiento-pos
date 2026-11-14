@@ -1,0 +1,37 @@
+<%- include('partials/header') %>
+<% const m = helpers.money; const BADGE = { Dentro: 'b-azul', Pagado: 'b-verde', Cancelado: 'b-rojo' }; %>
+
+<%- include('partials/periodo', { rango, extraQuery }) %>
+
+<div class="kpi-grid">
+  <div class="kpi azul"><div class="kpi-icon">🚗</div><div class="kpi-label">Vehículos</div><div class="kpi-val md"><%= kpi.total %></div><div class="kpi-sub">entraron en el periodo</div></div>
+  <div class="kpi verde"><div class="kpi-icon">💰</div><div class="kpi-label">Cobrado</div><div class="kpi-val md">$<%= m(kpi.cobrado) %></div><div class="kpi-sub"><%= kpi.pagados %> salidas</div></div>
+  <div class="kpi rojo"><div class="kpi-icon">✖</div><div class="kpi-label">Cancelados</div><div class="kpi-val md"><%= kpi.cancelados %></div></div>
+</div>
+
+<div class="card">
+  <form method="GET" class="toolbar mb-12">
+    <input type="hidden" name="periodo" value="<%= rango.periodo %>"><input type="hidden" name="desde" value="<%= rango.desde %>"><input type="hidden" name="hasta" value="<%= rango.hasta %>">
+    <div class="form-group" style="flex:1;min-width:160px"><label class="form-label">Placas o folio</label><input name="placa" class="form-control" value="<%= placa %>" style="text-transform:uppercase"></div>
+    <div class="form-group"><label class="form-label">Estado</label><select name="estado" class="form-control"><option value="">Todos</option><% ESTADOS.forEach(e => { %><option <%= e === estado ? 'selected' : '' %>><%= e %></option><% }) %></select></div>
+    <button class="btn btn-primary">Buscar</button>
+    <a class="btn btn-outline" href="/historial/csv?periodo=<%= rango.periodo %>&desde=<%= rango.desde %>&hasta=<%= rango.hasta %><%= extraQuery %>">⬇️ Excel</a>
+  </form>
+  <div class="table-wrap"><table><thead><tr><th>Folio</th><th>Vehículo</th><th>Entrada</th><th>Salida</th><th>Tiempo</th><th>Estado</th><th>Pago</th><th class="text-right">Cobrado</th><th>Atendió</th><th></th></tr></thead><tbody>
+  <% filas.forEach(f => { %><tr>
+    <td class="nowrap"><%= f.folio %></td>
+    <td><span class="placa"><%= f.placas %></span> <span class="text-xs text-muted"><%= f.tipo_vehiculo %><%= f.cliente ? ' · ' + f.cliente : '' %></span></td>
+    <td class="nowrap text-muted"><%= helpers.fmtDT(f.entrada_at) %></td>
+    <td class="nowrap text-muted"><%= f.salida_at ? helpers.fmtDT(f.salida_at) : '—' %></td>
+    <td class="nowrap"><%= f.estado === 'Dentro' ? fmtTiempo(f.seg / 60) : (f.minutos != null ? fmtTiempo(f.minutos) : '—') %></td>
+    <td><span class="badge <%= BADGE[f.estado] || 'b-gris' %>"><%= f.estado %></span><% if (f.cancel_motivo) { %><br><span class="text-xs text-muted"><%= f.cancel_motivo %></span><% } %></td>
+    <td><%= f.tipo_cobro === 'Pension' ? '📇 Pensión' : (f.metodo_pago || '—') %><%= f.boleto_perdido ? ' · 🎫 perdido' : '' %></td>
+    <td class="text-right fw-bold"><%= f.monto_cobrado != null ? '$' + m(f.monto_cobrado) : '—' %></td>
+    <td class="text-xs"><%= f.cajero_entrada %><% if (f.cajero_salida && f.cajero_salida !== f.cajero_entrada) { %> → <%= f.cajero_salida %><% } %></td>
+    <td class="text-right nowrap"><a class="btn btn-ghost btn-sm" href="/operacion/ticket/<%= f.id_ticket %>" target="_blank" title="Imprimir">🖨️</a></td>
+  </tr><% }) %>
+  <% if (!filas.length) { %><tr><td colspan="10" class="text-muted" style="text-align:center;padding:22px">Sin vehículos en este periodo.</td></tr><% } %>
+  </tbody></table></div>
+  <% if (filas.length >= 2000) { %><div class="form-hint">Se muestran los primeros 2,000. Acota el periodo para ver el resto.</div><% } %>
+</div>
+<%- include('partials/footer') %>

@@ -1,0 +1,112 @@
+<%- include('partials/header') %>
+<% const m = helpers.money; const esPension = t.tipo_cobro === 'Pension'; const base = parseFloat(t.monto) || 0; %>
+
+<form method="POST" action="/operacion/cobrar/<%= t.id_ticket %>" id="fCobro" autocomplete="off">
+<div class="cobro">
+  <!-- ── Datos del vehículo ── -->
+  <div class="card">
+    <div style="text-align:center">
+      <div style="font-size:2.6rem;line-height:1"><%= t.icono || '🚗' %></div>
+      <div class="placa lg" style="margin:8px 0"><%= t.placas %></div>
+      <div class="text-muted text-sm"><%= t.tipo_vehiculo %><%= t.cliente ? ' · ' + t.cliente : '' %></div>
+    </div>
+    <ul class="dato-lista">
+      <li><span>Ticket</span><strong><%= t.folio %></strong></li>
+      <li><span>Entrada</span><strong><%= helpers.fmtDT(t.entrada_at) %></strong></li>
+      <li><span>Tiempo</span><strong><%= fmtTiempo(t.mins) %></strong></li>
+      <li><span>Registró</span><strong><%= t.cajero_entrada %></strong></li>
+      <% if (esPension) { %>
+        <li><span>Tarifa</span><strong>📇 Pensión vigente</strong></li>
+      <% } else { %>
+        <li><span>Tarifa</span><strong>$<%= m(conf.tarifa_hora, 0) %> la hora, por minuto</strong></li>
+        <li><span>Por tiempo</span><strong>$<%= m(base) %></strong></li>
+        <li id="liPerdido" style="display:none"><span>Boleto perdido</span><strong>+ $<%= m(cargoPerdido) %></strong></li>
+      <% } %>
+    </ul>
+    <% if (!esPension && cargoPerdido > 0) { %>
+    <label class="switch-row" style="margin-top:12px">
+      <input type="checkbox" name="boleto_perdido" value="1" id="chkPerdido">
+      <span><strong>🎫 Boleto perdido</strong><br><small>El cliente no trae su ticket: se suman $<%= m(cargoPerdido, 0) %></small></span>
+    </label>
+    <% } %>
+  </div>
+
+  <!-- ── Cobro ── -->
+  <div class="card">
+    <div class="cobro-total <%= base > 0 ? '' : 'cero' %>" id="cajaTotal">
+      <small>Total a cobrar</small><strong id="total">$<%= m(base) %></strong>
+    </div>
+
+    <% if (!sesionCaja) { %>
+      <div class="alert alert-warning" id="avisoCaja" <%- base > 0 ? '' : 'style="display:none"' %>>⚠️ La caja está cerrada. <a href="/caja">Ábrela</a> para poder cobrar.</div>
+    <% } %>
+
+    <div id="zonaPago">
+      <label class="form-label">Forma de pago</label>
+      <div class="metodos mb-16">
+        <% const ICO = { Efectivo: '💵', Tarjeta: '💳', Transferencia: '📲' }; METODOS.forEach((x, i) => { %>
+        <label class="tipo-op"><input type="radio" name="metodo" value="<%= x %>" <%= i === 0 ? 'checked' : '' %>>
+          <span class="caja"><span class="ico"><%= ICO[x] %></span><span class="nom"><%= x %></span></span></label>
+        <% }) %>
+      </div>
+      <div id="zonaEfectivo">
+        <label class="form-label" for="recibido">Efectivo recibido</label>
+        <input type="number" id="recibido" name="recibido" class="form-control" step="0.5" min="0" inputmode="decimal" placeholder="Si paga exacto, déjalo vacío" style="font-size:1.4rem;font-weight:800;text-align:right">
+        <div class="rapidos" id="rapidos"></div>
+        <div class="cambio-box" id="cajaCambio"><span id="lblCambio">Cambio</span><strong id="cambio">$0.00</strong></div>
+      </div>
+    </div>
+
+    <button class="btn btn-success btn-block btn-lg" id="btnCobrar"><%= base > 0 ? 'Cobrar y registrar salida' : 'Registrar salida sin cobro' %></button>
+    <a href="/operacion" class="btn btn-ghost btn-block" style="margin-top:8px">← Volver sin cobrar</a>
+    <p class="text-xs text-muted" style="text-align:center;margin-top:10px">El monto se calculó a las <%= new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) %> y se respeta durante 5 minutos.</p>
+  </div>
+</div>
+</form>
+
+<script>
+(function () {
+  var BASE = <%= base %>, EXTRA = <%= cargoPerdido %>, HAY_CAJA = <%= sesionCaja ? 'true' : 'false' %>;
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n) { return '$' + n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  var chk = $('chkPerdido'), rec = $('recibido');
+
+  function total() { return BASE + (chk && chk.checked ? EXTRA : 0); }
+  function metodo() { return document.querySelector('input[name=metodo]:checked').value; }
+
+  function pintar() {
+    var t = total(), efectivo = metodo() === 'Efectivo';
+    $('total').textContent = fmt(t);
+    $('cajaTotal').classList.toggle('cero', t <= 0);
+    if ($('liPerdido')) $('liPerdido').style.display = chk && chk.checked ? '' : 'none';
+    $('zonaPago').style.display = t > 0 ? '' : 'none';
+    $('zonaEfectivo').style.display = efectivo ? '' : 'none';
+    if ($('avisoCaja')) $('avisoCaja').style.display = t > 0 ? '' : 'none';
+    $('btnCobrar').textContent = t > 0 ? 'Cobrar ' + fmt(t) + ' y registrar salida' : 'Registrar salida sin cobro';
+
+    // Billetes sugeridos: exacto y los siguientes cierres
+    var ops = [t]; [20, 50, 100, 200, 500, 1000].forEach(function (b) { var v = Math.ceil(t / b) * b; if (v > t && ops.indexOf(v) < 0) ops.push(v); });
+    $('rapidos').innerHTML = ops.slice(0, 6).map(function (v, i) {
+      return '<button type="button" class="btn btn-outline btn-sm" data-v="' + v + '">' + (i === 0 ? 'Exacto' : fmt(v).replace('.00', '')) + '</button>';
+    }).join('');
+
+    var r = rec.value === '' ? t : parseFloat(rec.value) || 0, dif = r - t;
+    $('cajaCambio').classList.toggle('falta', dif < 0);
+    $('lblCambio').textContent = dif < 0 ? 'Faltan' : 'Cambio a entregar';
+    $('cambio').textContent = fmt(Math.abs(dif));
+    $('btnCobrar').disabled = t > 0 && (!HAY_CAJA || (efectivo && dif < 0));
+  }
+
+  $('rapidos').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    rec.value = b.dataset.v; pintar();
+  });
+  rec.addEventListener('input', pintar);
+  if (chk) chk.addEventListener('change', pintar);
+  document.querySelectorAll('input[name=metodo]').forEach(function (x) { x.addEventListener('change', pintar); });
+  $('fCobro').addEventListener('submit', function () { setTimeout(function () { $('btnCobrar').disabled = true; }, 0); });
+  pintar();
+  if (BASE > 0) rec.focus();
+})();
+</script>
+<%- include('partials/footer') %>

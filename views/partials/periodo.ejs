@@ -1,0 +1,19 @@
+<%# Barra de filtros de fecha: requiere rango = { periodo, desde, hasta, etiqueta } y opcional soloHoy %>
+<% const _r = locals.rango || {}; const _extra = locals.extraQuery || ''; %>
+<% if (locals.soloHoy) { %>
+  <div class="periodo-bar"><span class="pill active">Hoy</span><span class="periodo-label">📅 <%= _r.etiqueta %> · Solo el administrador puede ver datos históricos</span></div>
+<% } else { %>
+<form class="periodo-bar" method="GET" id="formPeriodo">
+  <% if (locals.hiddenTab) { %><input type="hidden" name="tab" value="<%= hiddenTab %>"><% } %>
+  <% [['ayer','Ayer'],['hoy','Hoy'],['semana','Semana'],['mes','Mes'],['30','30 días']].forEach(([k,l]) => { %>
+    <a class="pill <%= _r.periodo===k?'active':'' %>" href="?periodo=<%= k %><%= _extra %><%= locals.hiddenTab ? '&tab='+hiddenTab : '' %>"><%= l %></a>
+  <% }) %>
+  <span class="rango">
+    <input type="hidden" name="periodo" value="rango">
+    <input type="date" name="desde" class="form-control" value="<%= _r.desde %>">
+    <input type="date" name="hasta" class="form-control" value="<%= _r.hasta %>">
+    <button class="btn btn-outline btn-sm" type="submit"><%= locals.btnTexto || 'Rango' %></button>
+  </span>
+  <span class="periodo-label">📅 <%= _r.etiqueta %></span>
+</form>
+<% } %>

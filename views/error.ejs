@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title><%= codigo %> | <%= locals.APP_NAME || 'Estacionamiento' %></title>
+<link rel="stylesheet" href="/assets/css/style.css?v=2">
+</head>
+<body class="login">
+  <div style="text-align:center;padding:60px 20px;max-width:520px">
+    <div style="font-size:4rem"><%= codigo === 404 ? '🧭' : (codigo === 403 ? '🚫' : '⚠️') %></div>
+    <h2 style="color:var(--primary-lt);margin:10px 0"><%= codigo === 403 ? 'Acceso denegado' : 'Error ' + codigo %></h2>
+    <p style="color:var(--muted);margin-bottom:24px"><%= mensaje %></p>
+    <% if (locals.detalle) { %><pre style="text-align:left;background:var(--surface);padding:12px;border-radius:8px;font-size:.75rem;color:#c62020;white-space:pre-wrap;margin-bottom:20px"><%= detalle %></pre><% } %>
+    <a href="/" class="btn btn-primary">← Volver al inicio</a>
+  </div>
+</body></html>

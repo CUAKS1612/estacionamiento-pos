@@ -1,0 +1,83 @@
+<%- include('partials/header') %>
+<% const m = helpers.money; const hora = parseFloat(conf.tarifa_hora) || 0; %>
+
+<%- include('partials/ayuda', { titulo: 'Cómo se calcula el cobro', pasos: [
+  ['🏷️ Una sola tarifa', 'Todos los vehículos pagan lo mismo, sin importar el tipo.'],
+  ['⏳ Tolerancia', 'Si el vehículo sale dentro de los minutos de tolerancia no paga nada.'],
+  ['1️⃣ Primera hora', 'Pasando la tolerancia se cobra la hora completa, aunque esté menos tiempo.'],
+  ['⏱️ Después, por minuto', 'A partir del minuto 61 el monto sube parejo con el tiempo, al mismo precio por hora: se cobra exactamente lo que estuvo, en pesos cerrados.']
+] }) %>
+
+<div class="grid-2 mb-20" style="align-items:start">
+  <div class="card"><div class="card-title mb-16">🏷️ Tarifa</div>
+    <form method="POST"><input type="hidden" name="accion" value="tarifa">
+      <div class="form-group"><label class="form-label" for="gHora">Precio por hora ($)</label>
+        <input type="number" id="gHora" name="tarifa_hora" class="form-control" min="1" step="0.5" required value="<%= conf.tarifa_hora %>" style="font-size:1.6rem;font-weight:800;max-width:200px">
+        <div class="form-hint">Es lo que se cobra al entrar (primera hora) y el ritmo al que sube después.</div></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Tolerancia (minutos)</label><input type="number" name="tolerancia_min" id="gTol" class="form-control" min="0" max="60" required value="<%= conf.tolerancia_min %>"><div class="form-hint">Minutos sin cobro. 0 = se cobra desde que entra.</div></div>
+        <div class="form-group"><label class="form-label">Boleto perdido ($)</label><input type="number" name="cargo_boleto_perdido" class="form-control" min="0" step="0.01" required value="<%= conf.cargo_boleto_perdido %>"><div class="form-hint">Se suma al tiempo. 0 = sin cargo.</div></div>
+      </div>
+      <button class="btn btn-primary">Guardar tarifa</button>
+    </form></div>
+
+  <div class="card"><div class="card-title mb-16">🧮 Así se va cobrando</div>
+    <div class="table-wrap"><table><thead><tr><th>Tiempo dentro</th><th class="text-right">Paga</th></tr></thead>
+      <tbody id="ejemplos"></tbody></table></div>
+    <div class="form-row" style="margin-top:16px;align-items:flex-end">
+      <div class="form-group"><label class="form-label">Probar: horas</label><input type="number" id="pH" class="form-control" min="0" value="1"></div>
+      <div class="form-group"><label class="form-label">minutos</label><input type="number" id="pM" class="form-control" min="0" max="59" value="3"></div>
+      <div class="form-group"><div class="saldo-box" style="margin:0"><span>Paga</span><span class="sv" id="pTotal">$0</span></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="flex-between mb-12"><div><div class="card-title mb-0">🚗 Tipos de vehículo</div><div class="text-muted text-sm">Solo sirven para identificar al vehículo en la entrada y en los reportes. No cambian el precio.</div></div>
+    <button class="btn btn-primary" onclick="editar(null)">+ Nuevo tipo</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Orden</th><th>Estado</th><th></th></tr></thead><tbody>
+  <% tipos.forEach(t => { %><tr style="<%= t.activo ? '' : 'opacity:.55' %>">
+    <td><span style="font-size:1.3rem"><%= t.icono %></span> <strong><%= t.nombre %></strong></td>
+    <td><%= t.orden %></td>
+    <td><span class="badge <%= t.activo ? 'b-verde' : 'b-gris' %>"><%= t.activo ? 'Visible' : 'Oculto' %></span></td>
+    <td class="text-right nowrap">
+      <button class="btn btn-ghost btn-sm" data-t="<%= JSON.stringify({ id_tarifa: t.id_tarifa, nombre: t.nombre, icono: t.icono, orden: t.orden }) %>" onclick="editar(this)">✏️ Editar</button>
+      <form method="POST" style="display:inline"><input type="hidden" name="accion" value="activar"><input type="hidden" name="id_tarifa" value="<%= t.id_tarifa %>"><input type="hidden" name="activo" value="<%= t.activo ? 0 : 1 %>">
+        <button class="btn btn-ghost btn-sm"><%= t.activo ? 'Ocultar' : 'Mostrar' %></button></form>
+    </td></tr><% }) %>
+  </tbody></table></div>
+</div>
+
+<div class="modal-overlay" id="mTipo"><div class="modal">
+  <div class="modal-header"><span class="modal-title" id="tTitulo">Tipo de vehículo</span><button class="modal-close" onclick="closeModal('mTipo')">✕</button></div>
+  <form method="POST" id="fTipo" autocomplete="off"><input type="hidden" name="accion" value="tipo"><input type="hidden" name="id_tarifa">
+    <div class="form-row">
+      <div class="form-group" style="flex:2"><label class="form-label">Nombre</label><input name="nombre" class="form-control" required maxlength="40" placeholder="Ej. Auto"></div>
+      <div class="form-group"><label class="form-label">Ícono</label><input name="icono" class="form-control" maxlength="8" placeholder="🚗"></div>
+      <div class="form-group"><label class="form-label">Orden</label><input type="number" name="orden" class="form-control" min="0" value="0"></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closeModal('mTipo')">Volver</button><button class="btn btn-primary">Guardar</button></div>
+  </form>
+</div></div>
+
+<script>
+var val = function (id) { return parseFloat(document.getElementById(id).value) || 0; };
+function pintar() {
+  var hora = val('gHora'), tol = val('gTol');
+  var casos = [Math.max(1, tol), 30, 60, 61, 62, 63, 75, 90, 120, 180, 300];
+  document.getElementById('ejemplos').innerHTML = casos.filter(function (c, i) { return casos.indexOf(c) === i; }).map(function (mins) {
+    var p = calcularMonto(mins, hora, tol);
+    return '<tr><td>' + fmtTiempo(mins) + '</td><td class="text-right fw-bold">' + (p > 0 ? '$' + p.toLocaleString('es-MX') : 'Sin cobro (tolerancia)') + '</td></tr>';
+  }).join('');
+  document.getElementById('pTotal').textContent = '$' + calcularMonto(val('pH') * 60 + val('pM'), hora, tol).toLocaleString('es-MX');
+}
+['gHora', 'gTol', 'pH', 'pM'].forEach(function (id) { document.getElementById(id).addEventListener('input', pintar); });
+pintar();
+function editar(btn) {
+  var f = document.getElementById('fTipo'), t = btn ? JSON.parse(btn.dataset.t) : null;
+  document.getElementById('tTitulo').textContent = t ? 'Editar: ' + t.nombre : 'Nuevo tipo de vehículo';
+  f.id_tarifa.value = t ? t.id_tarifa : ''; f.nombre.value = t ? t.nombre : ''; f.icono.value = t ? t.icono : '🚗'; f.orden.value = t ? t.orden : 0;
+  openModal('mTipo');
+}
+</script>
+<%- include('partials/footer') %>

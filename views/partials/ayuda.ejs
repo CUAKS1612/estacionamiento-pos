@@ -1,0 +1,28 @@
+<%
+// ayuda.ejs - Instrucciones del modulo, plegables.
+// Se incluye desde cada vista pasandole { titulo, pasos: [[titulo, texto], ...] }.
+// Cada usuario decide si las deja abiertas o cerradas; se recuerda en su navegador.
+const ayudaId = 'ayuda_' + (locals.paginaActiva || 'mod');
+%>
+<details class="ayuda" id="<%= ayudaId %>">
+  <summary>
+    <span class="ayuda-ico">📘</span>
+    <span class="ayuda-tit"><%= titulo %></span>
+    <span class="ayuda-hint">ver / ocultar</span>
+  </summary>
+  <ol class="ayuda-lista">
+    <% pasos.forEach(([t, d]) => { %>
+    <li><strong><%= t %></strong><span><%- d %></span></li>
+    <% }) %>
+  </ol>
+</details>
+<script>
+(function () {
+  var d = document.getElementById('<%= ayudaId %>');
+  if (!d) return;
+  try { if (localStorage.getItem('<%= ayudaId %>') === '1') d.open = true; } catch (e) {}
+  d.addEventListener('toggle', function () {
+    try { localStorage.setItem('<%= ayudaId %>', d.open ? '1' : '0'); } catch (e) {}
+  });
+})();
+</script>

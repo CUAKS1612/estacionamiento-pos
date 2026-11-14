@@ -1,0 +1,119 @@
+<%- include('partials/header') %>
+<% const m = helpers.money; %>
+
+<%- include('partials/ayuda', { titulo: 'Cómo funcionan las pensiones', pasos: [
+  ['📇 Qué es', 'Un cliente que paga por mes para dejar su vehículo. Mientras su pensión esté vigente, entra y sale sin cobro.'],
+  ['🚘 Entrada y salida', 'Se registran igual que cualquier vehículo. El sistema reconoce las placas y marca el ticket como pensión.'],
+  ['💵 Cobrar mensualidad', 'Presiona <strong>Cobrar</strong> en el cliente. El pago entra a la caja abierta y la vigencia se recorre un mes.'],
+  ['⏰ Vencidas', 'Si la pensión está vencida el vehículo entra con tarifa normal hasta que pague su mensualidad.'],
+  ['🔔 Avisos', 'El sistema avisa ' + diasAviso + ' días antes de que venza una pensión: en la campanita de arriba, en la pantalla de entradas y cuando el vehículo llega. Si el cliente tiene teléfono, el botón <strong>Avisar</strong> abre WhatsApp con el recordatorio ya escrito.']
+] }) %>
+
+<div class="kpi-grid">
+  <div class="kpi morado"><div class="kpi-icon">📇</div><div class="kpi-label">Pensionados</div><div class="kpi-val md"><%= kpi.total %></div><div class="kpi-sub"><%= kpi.vigentes %> vigentes</div></div>
+  <div class="kpi amarillo"><div class="kpi-icon">⏰</div><div class="kpi-label">Vencen en <%= diasAviso %> días</div><div class="kpi-val md"><%= kpi.porVencer %></div></div>
+  <div class="kpi rojo"><div class="kpi-icon">⚠️</div><div class="kpi-label">Vencidas</div><div class="kpi-val md"><%= kpi.vencidas %></div></div>
+  <div class="kpi verde"><div class="kpi-icon">💰</div><div class="kpi-label">Mensualidades</div><div class="kpi-val md">$<%= m(kpi.mensual) %></div><div class="kpi-sub">si todos pagan</div></div>
+</div>
+
+<div class="card mb-20">
+  <div class="flex-between mb-12">
+    <div class="card-title mb-0">Clientes con pensión</div>
+    <div class="flex gap-8">
+      <input class="form-control" style="max-width:220px" placeholder="🔎 Nombre o placas…" data-filtro="tblPen">
+      <% if (admin) { %><button class="btn btn-primary" onclick="editar(null)">+ Nueva pensión</button><% } %>
+    </div>
+  </div>
+  <div class="table-wrap"><table id="tblPen"><thead><tr><th>Cliente</th><th>Placas</th><th class="text-right">Mensualidad</th><th>Pagada hasta</th><th>Estado</th><th></th></tr></thead><tbody>
+  <% pensiones.forEach(p => { %><tr>
+    <td><strong><%= p.cliente %></strong><% if (p.telefono) { %><br><span class="text-xs text-muted">📞 <%= p.telefono %></span><% } %></td>
+    <td><span class="placa"><%= p.placas %></span><% if (p.descripcion) { %> <span class="text-xs text-muted"><%= p.descripcion %></span><% } %><% if (p.dentro > 0) { %> <span class="badge b-azul">Dentro</span><% } %></td>
+    <td class="text-right">$<%= m(p.mensualidad) %></td>
+    <td class="nowrap"><%= helpers.fmtFecha(p.vence) %></td>
+    <td><% if (p.dias < 0) { %><span class="badge b-rojo">Vencida hace <%= -p.dias %> d</span>
+        <% } else if (p.dias <= diasAviso) { %><span class="badge b-amarillo"><%= p.dias === 0 ? 'Vence hoy' : 'Vence en ' + p.dias + ' d' %></span>
+        <% } else { %><span class="badge b-verde">Vigente</span><% } %></td>
+    <td class="nowrap text-right">
+      <button class="btn btn-success btn-sm" data-p="<%= JSON.stringify({ id: p.id_pension, cliente: p.cliente, placas: p.placas, mensualidad: parseFloat(p.mensualidad) || 0 }) %>" onclick="cobrar(this)">Cobrar</button>
+      <% if (p.wa && p.dias <= diasAviso) { %><a class="btn btn-outline btn-sm" href="<%= p.wa %>" target="_blank" rel="noopener" title="Mandarle el recordatorio por WhatsApp">💬 Avisar</a><% } %>
+      <% if (admin) { %>
+        <button class="btn btn-ghost btn-sm" title="Editar" data-p="<%= JSON.stringify(p) %>" onclick="editar(this)">✏️</button>
+        <form method="POST" action="/pensiones/baja" style="display:inline" onsubmit="return confirm('¿Dar de baja la pensión de <%= p.placas %>?')"><input type="hidden" name="id_pension" value="<%= p.id_pension %>"><button class="btn btn-ghost btn-sm" title="Dar de baja">🗑️</button></form>
+      <% } %>
+    </td></tr><% }) %>
+  <% if (!pensiones.length) { %><tr><td colspan="6" class="text-muted" style="text-align:center;padding:22px">No hay pensiones registradas<%= admin ? '. Agrega la primera con «Nueva pensión».' : '. Las da de alta el administrador.' %></td></tr><% } %>
+  </tbody></table></div>
+</div>
+
+<div class="card">
+  <div class="card-title mb-12">Últimos pagos de pensión</div>
+  <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Placas</th><th>Detalle</th><th>Pago</th><th>Cobró</th><th class="text-right">Monto</th></tr></thead><tbody>
+  <% pagos.forEach(x => { %><tr><td class="nowrap text-muted"><%= helpers.fmtDT(x.fecha_hora) %></td><td><%= x.cliente %></td><td><span class="placa"><%= x.placas %></span></td>
+    <td class="text-muted"><%= x.referencia || '' %></td><td><%= x.metodo_pago %></td><td><%= x.cajero %></td><td class="text-right fw-bold">$<%= m(x.monto) %></td></tr><% }) %>
+  <% if (!pagos.length) { %><tr><td colspan="7" class="text-muted" style="text-align:center;padding:18px">Sin pagos registrados.</td></tr><% } %>
+  </tbody></table></div>
+</div>
+
+<!-- Cobrar mensualidad -->
+<div class="modal-overlay" id="mCobrar"><div class="modal">
+  <div class="modal-header"><span class="modal-title">💵 Cobrar pensión</span><button class="modal-close" onclick="closeModal('mCobrar')">✕</button></div>
+  <form method="POST" action="/pensiones/cobrar"><input type="hidden" name="id_pension" id="cId">
+    <p class="mb-16"><strong id="cCliente"></strong> · <span class="placa" id="cPlacas"></span></p>
+    <% if (!sesionCaja) { %><div class="alert alert-warning">⚠️ La caja está cerrada. <a href="/caja">Ábrela</a> para poder cobrar.</div><% } %>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Meses a pagar</label><select name="meses" id="cMeses" class="form-control"><% [1,2,3,6,12].forEach(n => { %><option value="<%= n %>"><%= n %> mes<%= n > 1 ? 'es' : '' %></option><% }) %></select></div>
+      <div class="form-group"><label class="form-label">Forma de pago</label><select name="metodo" class="form-control"><% METODOS.forEach(x => { %><option><%= x %></option><% }) %></select></div>
+    </div>
+    <div class="saldo-box"><span>Total</span><span class="sv" id="cTotal">$0.00</span></div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closeModal('mCobrar')">Volver</button><button class="btn btn-success" <%= sesionCaja ? '' : 'disabled' %>>Cobrar</button></div>
+  </form>
+</div></div>
+
+<% if (admin) { %>
+<div class="modal-overlay" id="mEditar"><div class="modal">
+  <div class="modal-header"><span class="modal-title" id="eTitulo">Nueva pensión</span><button class="modal-close" onclick="closeModal('mEditar')">✕</button></div>
+  <form method="POST" action="/pensiones/guardar" id="fEditar" autocomplete="off"><input type="hidden" name="id_pension">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Cliente</label><input name="cliente" class="form-control" required maxlength="120"></div>
+      <div class="form-group"><label class="form-label">Teléfono</label><input name="telefono" class="form-control" maxlength="30" inputmode="tel"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Placas</label><input name="placas" class="form-control" required maxlength="12" style="text-transform:uppercase"></div>
+      <div class="form-group"><label class="form-label">Marca / color</label><input name="descripcion" class="form-control" maxlength="120"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Mensualidad ($)</label><input type="number" name="mensualidad" class="form-control" step="0.01" min="0" required inputmode="decimal"></div>
+      <div class="form-group"><label class="form-label">Pagada hasta</label><input type="date" name="vence" class="form-control" required><div class="form-hint">Último día que cubre lo que ya pagó.</div></div>
+    </div>
+    <div class="form-group"><label class="form-label">Notas</label><input name="notas" class="form-control" maxlength="255"></div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closeModal('mEditar')">Volver</button><button class="btn btn-primary">Guardar</button></div>
+  </form>
+</div></div>
+<% } %>
+
+<script>
+var penActual = null;
+function pintarTotal() {
+  if (!penActual) return;
+  var t = penActual.mensualidad * parseInt(document.getElementById('cMeses').value, 10);
+  document.getElementById('cTotal').textContent = '$' + t.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+}
+function cobrar(btn) {
+  penActual = JSON.parse(btn.dataset.p);
+  document.getElementById('cId').value = penActual.id;
+  document.getElementById('cCliente').textContent = penActual.cliente;
+  document.getElementById('cPlacas').textContent = penActual.placas;
+  document.getElementById('cMeses').value = '1';
+  pintarTotal(); openModal('mCobrar');
+}
+document.getElementById('cMeses').addEventListener('change', pintarTotal);
+function editar(btn) {
+  var f = document.getElementById('fEditar'), p = btn ? JSON.parse(btn.dataset.p) : null;
+  document.getElementById('eTitulo').textContent = p ? 'Editar pensión' : 'Nueva pensión';
+  f.id_pension.value = p ? p.id_pension : '';
+  ['cliente', 'telefono', 'placas', 'descripcion', 'mensualidad', 'notas'].forEach(function (k) { f[k].value = p && p[k] != null ? p[k] : ''; });
+  f.vence.value = p ? String(p.vence).slice(0, 10) : '<%= hoyStr %>';
+  openModal('mEditar');
+}
+</script>
+<%- include('partials/footer') %>

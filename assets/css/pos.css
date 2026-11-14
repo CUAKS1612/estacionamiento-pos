@@ -1,0 +1,159 @@
+/* ============================================================
+   pos.css — Piezas propias del punto de venta de estacionamiento
+   (la base visual es style.css)
+   ============================================================ */
+.brand-logo{width:38px;height:38px;border-radius:10px}
+
+/* Placa del vehículo, como etiqueta */
+.placa{display:inline-block;font-family:'Courier New',monospace;font-weight:800;letter-spacing:.08em;
+  background:#fff;border:2px solid var(--text);border-radius:6px;padding:1px 8px;font-size:.95rem;color:var(--text);white-space:nowrap}
+.placa.lg{font-size:1.9rem;padding:4px 16px;border-width:3px;border-radius:10px}
+
+/* Captura de placas */
+.placa-input{text-transform:uppercase;font-family:'Courier New',monospace;font-size:1.7rem!important;font-weight:800;
+  letter-spacing:.12em;text-align:center;padding:14px!important}
+.placa-input::placeholder{letter-spacing:.04em;font-weight:500;font-size:1.1rem;opacity:.6}
+
+/* Selector de tipo de vehículo */
+.tipo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
+.tipo-op{position:relative;cursor:pointer}
+.tipo-op input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.tipo-op .caja{display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border:2px solid var(--border);
+  border-radius:var(--radius);background:var(--surface);transition:all var(--transition);text-align:center}
+.tipo-op .ico{font-size:1.9rem;line-height:1.1}
+.tipo-op .nom{font-weight:700;font-size:.86rem}
+.tipo-op .pre{font-size:.72rem;color:var(--muted)}
+.tipo-op:hover .caja{border-color:var(--primary-lt)}
+.tipo-op input:checked + .caja{border-color:var(--primary);background:#e6f5fe;box-shadow:0 0 0 3px rgba(14,165,233,.15)}
+.tipo-op input:focus-visible + .caja{outline:2px solid var(--primary);outline-offset:2px}
+
+/* Medidor de ocupación */
+.ocup{height:10px;border-radius:99px;background:var(--surface3);overflow:hidden;margin-top:8px}
+.ocup span{display:block;height:100%;border-radius:99px;background:var(--success);transition:width .4s ease}
+.ocup.media span{background:#d97706}.ocup.alta span{background:var(--danger)}
+
+/* Pantalla de cobro */
+.cobro{max-width:920px;margin:0 auto;display:grid;grid-template-columns:1fr 1.1fr;gap:20px;align-items:start}
+.cobro-total{text-align:center;padding:18px 12px;border-radius:var(--radius);background:linear-gradient(135deg,#075985,#0ea5e9);color:#fff;margin-bottom:16px}
+.cobro-total small{display:block;font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+.cobro-total strong{display:block;font-size:3.2rem;font-weight:900;line-height:1.1;font-variant-numeric:tabular-nums}
+.cobro-total.cero{background:linear-gradient(135deg,#07704b,#0f9f6e)}
+.metodos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.metodos .tipo-op .caja{padding:10px 4px}.metodos .tipo-op .ico{font-size:1.4rem}
+.rapidos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cambio-box{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:var(--radius-sm);
+  background:#e9f9f2;border:1px solid #bfe9d6;margin:14px 0;font-weight:700}
+.cambio-box strong{font-size:1.6rem;color:#07704b;font-variant-numeric:tabular-nums}
+.cambio-box.falta{background:#fdecec;border-color:#f0a9a9}.cambio-box.falta strong{color:#b91c1c}
+.dato-lista{list-style:none;margin:14px 0 0;padding:0}
+.dato-lista li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--hair);font-size:.9rem}
+.dato-lista li:last-child{border-bottom:0}.dato-lista li span:first-child{color:var(--muted)}
+.dato-lista li strong{text-align:right}
+
+.flex-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.mb-0{margin-bottom:0}.mb-12{margin-bottom:12px}.mb-20{margin-bottom:20px}.nowrap{white-space:nowrap}.text-xs{font-size:.74rem}
+.tachado td{text-decoration:line-through;opacity:.55}
+.grid-op{display:grid;grid-template-columns:minmax(300px,1fr) 1.7fr;gap:20px;align-items:start}
+.impresor{position:absolute;width:0;height:0;border:0;visibility:hidden}
+
+@media(max-width:1000px){.grid-op,.cobro{grid-template-columns:1fr}}
+@media(max-width:560px){.cobro-total strong{font-size:2.6rem}.placa.lg{font-size:1.5rem}}
+
+/* ============================================================
+   Dashboard visual
+   ============================================================ */
+.dash-hero{display:grid;grid-template-columns:1.7fr 1fr;gap:20px;margin-bottom:20px;align-items:stretch}
+.lote{background:linear-gradient(160deg,#075985 0%,#0369a1 55%,#0ea5e9 100%);border-radius:var(--radius-lg);padding:22px;color:#fff;
+  position:relative;overflow:hidden;box-shadow:var(--shadow-lg)}
+.lote::after{content:'P';position:absolute;right:-18px;bottom:-70px;font-size:17rem;font-weight:900;line-height:1;color:rgba(255,255,255,.06);pointer-events:none}
+.lote-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px;position:relative;z-index:1}
+.lote-head h2{font-size:1.05rem;font-weight:800;letter-spacing:.01em}
+.lote-head p{font-size:.78rem;opacity:.8;margin-top:2px}
+.lote-ley{display:flex;gap:12px;flex-wrap:wrap;font-size:.72rem;opacity:.95}
+.lote-ley i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.lote-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:7px;position:relative;z-index:1}
+.cajon{aspect-ratio:3/4;border-radius:7px;border:1.5px dashed rgba(255,255,255,.28);display:flex;align-items:center;justify-content:center;
+  font-size:1.15rem;line-height:1;position:relative;transition:transform .15s ease}
+.cajon.occ{border-style:solid;border-color:transparent;background:#7dd3fc;box-shadow:0 2px 6px rgba(0,0,0,.18);cursor:default}
+.cajon.occ.t2{background:#fde68a}.cajon.occ.t3{background:#f9735b}.cajon.occ.pen{background:#fff}
+.cajon.occ:hover{transform:translateY(-3px) scale(1.08);z-index:2}
+.cajon.occ:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);white-space:nowrap;
+  background:#0b2540;color:#fff;font-size:.7rem;font-weight:600;padding:4px 8px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.lote-nota{font-size:.7rem;opacity:.7;margin-top:12px;position:relative;z-index:1}
+
+.medidor{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+.anillo{position:relative;width:190px;height:190px}
+.anillo svg{width:100%;height:100%;transform:rotate(-90deg)}
+.anillo .fondo{fill:none;stroke:var(--surface3);stroke-width:14}
+.anillo .valor{fill:none;stroke-width:14;stroke-linecap:round;transition:stroke-dashoffset 1s ease}
+.anillo .centro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.anillo .centro strong{font-size:2.6rem;font-weight:900;line-height:1;color:var(--primary-dk);font-variant-numeric:tabular-nums}
+.anillo .centro span{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+.medidor-datos{display:flex;gap:22px;margin-top:6px}
+.medidor-datos div{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.medidor-datos b{display:block;font-size:1.35rem;color:var(--text);font-weight:800;letter-spacing:0}
+.caja-chip{margin-top:10px;width:100%;padding:10px 14px;border-radius:var(--radius);font-size:.82rem;display:flex;justify-content:space-between;align-items:center;gap:8px;text-decoration:none}
+.caja-chip.on{background:#e9f9f2;color:#07704b;border:1px solid #bfe9d6}
+.caja-chip.off{background:#fff1ee;color:#b93a22;border:1px solid #fbcabf}
+.caja-chip b{font-size:1.05rem}
+
+/* Dinero: una sola barra repartida */
+.dinero-top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.dinero-top .gran{font-size:2.4rem;font-weight:900;line-height:1;color:var(--primary-dk);font-variant-numeric:tabular-nums}
+.dinero-top small{display:block;font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.dinero-top .neta{text-align:right}.dinero-top .neta .gran{font-size:1.6rem;color:#07704b}.dinero-top .neta.neg .gran{color:#b93a22}
+.barra{display:flex;height:34px;border-radius:10px;overflow:hidden;background:var(--surface3)}
+.barra span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:.74rem;font-weight:700;min-width:0;overflow:hidden;white-space:nowrap;transition:flex-grow .8s ease}
+.barra .s1{background:#0ea5e9}.barra .s2{background:#075985}.barra .s3{background:#7dd3fc;color:#075985}.barra .sg{background:#f9735b}
+.barra.delgada{height:12px;margin-top:8px;background:#fff1ee}
+.barra-ley{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:.8rem}
+.barra-ley i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+.barra-ley b{font-variant-numeric:tabular-nums}
+
+/* Horas pico: tira de calor */
+.calor{display:grid;grid-template-columns:repeat(24,1fr);gap:4px;margin-top:6px}
+.calor div{aspect-ratio:1/1.5;border-radius:6px;background:var(--surface3);position:relative;display:flex;align-items:flex-end;justify-content:center;
+  font-size:.66rem;font-weight:700;color:#fff;padding-bottom:3px}
+.calor div.vacia{color:transparent}
+.calor div.pico{outline:2px solid var(--accent);outline-offset:2px}
+.calor-eje{display:grid;grid-template-columns:repeat(24,1fr);gap:4px;margin-top:6px;font-size:.64rem;color:var(--muted);text-align:center}
+.calor-eje span:nth-child(odd){visibility:hidden}
+.dato-pico{display:flex;gap:26px;flex-wrap:wrap;margin-bottom:12px}
+.dato-pico div{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.dato-pico b{display:block;font-size:1.3rem;color:var(--text);letter-spacing:0;font-weight:800}
+
+/* Filas con barra proporcional (tipos, cajeros, más tiempo dentro) */
+.filas{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.filas li{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
+.filas .ico{width:40px;height:40px;border-radius:12px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;color:var(--primary-dk)}
+.filas .nom{font-weight:700;font-size:.88rem;display:flex;justify-content:space-between;gap:8px}
+.filas .nom small{font-weight:500;color:var(--muted)}
+.filas .pista{height:8px;border-radius:99px;background:var(--surface3);margin-top:6px;overflow:hidden}
+.filas .pista span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#7dd3fc,#0ea5e9)}
+.filas .pista.coral span{background:linear-gradient(90deg,#fdba9f,#f9735b)}
+.filas .val{font-weight:800;font-variant-numeric:tabular-nums;font-size:.92rem;white-space:nowrap}
+
+/* Cortes como línea de tiempo */
+.linea{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--border)}
+.linea li{position:relative;padding:0 0 14px 14px;font-size:.86rem}
+.linea li:last-child{padding-bottom:0}
+.linea li::before{content:'';position:absolute;left:-25px;top:4px;width:12px;height:12px;border-radius:50%;background:#0f9f6e;border:3px solid #fff;box-shadow:0 0 0 1px var(--border)}
+.linea li.falta::before{background:#f9735b}.linea li.sobra::before{background:#0ea5e9}
+.linea .lt{display:flex;justify-content:space-between;gap:10px}
+.linea small{color:var(--muted)}
+
+.dash-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:20px}
+.dash-2{display:grid;grid-template-columns:1.5fr 1fr;gap:20px;margin-bottom:20px}
+@media(max-width:1100px){.dash-hero,.dash-2{grid-template-columns:1fr}.dash-3{grid-template-columns:1fr}}
+.dash-3 .flex-between{flex-wrap:nowrap}
+.dato-pico b,.medidor-datos b{text-transform:none}
+.ayuda-lista li span strong{display:inline}
+
+/* Aviso de pensiones en la pantalla del cajero */
+.aviso-pen{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:var(--radius);background:#fff4ef;border:1px solid #fbcabf;
+  border-left:5px solid var(--accent);color:var(--text);text-decoration:none;transition:box-shadow var(--transition)}
+.aviso-pen:hover{box-shadow:var(--shadow);color:var(--text)}
+.aviso-pen .ap-ico{font-size:1.5rem}
+.aviso-pen small{color:var(--muted)}
+.aviso-pen .ap-ir{margin-left:auto;font-weight:700;color:#b93a22;white-space:nowrap}
+.notif-item small{color:var(--muted)}

@@ -1,0 +1,78 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Ticket <%= t.folio %></title>
+<style>
+body{font-family:'Courier New',monospace;font-size:13px;max-width:300px;margin:0 auto;padding:12px;color:#000;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+hr{border:0;border-top:1px dashed #000;margin:8px 0}.b{font-weight:bold}.big{font-size:24px;font-weight:bold;letter-spacing:2px}
+.r{display:flex;justify-content:space-between;text-align:left}.sm{font-size:11px}
+.pl{display:inline-block;border:2px solid #000;border-radius:6px;padding:2px 12px;margin:6px 0}
+.tar{font-size:11px;text-align:left;line-height:1.5}
+@media print{.np{display:none}@page{margin:4mm}}
+</style></head>
+<body onload="setTimeout(function(){print()},350)">
+<div class="np" style="margin-bottom:8px"><button onclick="print()">🖨️ Imprimir</button></div>
+<% const m = helpers.money; %>
+<div class="b" style="font-size:16px"><%= conf.negocio_nombre %></div>
+<% if (conf.negocio_direccion) { %><div class="sm"><%= conf.negocio_direccion %></div><% } %>
+<% if (conf.negocio_telefono) { %><div class="sm">Tel. <%= conf.negocio_telefono %></div><% } %>
+<% if (conf.negocio_horario) { %><div class="sm"><%= conf.negocio_horario %></div><% } %>
+<hr>
+
+<% if (t.estado === 'Dentro') { %>
+  <div>BOLETO DE ENTRADA</div>
+  <div class="big"><%= t.folio %></div>
+  <div class="big pl"><%= t.placas %></div>
+  <div><%= t.tipo_vehiculo %><%= t.cliente ? ' · ' + t.cliente : '' %></div>
+  <hr>
+  <div class="r"><span>Entrada:</span><span class="b"><%= helpers.fmtDT(t.entrada_at) %></span></div>
+  <div class="r"><span>Atendió:</span><span><%= t.cajero_entrada %></span></div>
+  <hr>
+  <% if (t.tipo_cobro === 'Pension') { %>
+    <div class="b">PENSIÓN — SIN COSTO</div>
+  <% } else { %>
+    <div class="tar">
+      <span class="b">TARIFA</span><br>
+      · $<%= m(conf.tarifa_hora, 0) %> la hora (la primera se cobra completa)<br>
+      · Después de 1 h se cobra por minuto,<br>&nbsp;&nbsp;al mismo precio por hora<br>
+      <% if (parseInt(conf.tolerancia_min) > 0) { %>· Tolerancia: <%= conf.tolerancia_min %> min<br><% } %>
+      <% if (parseFloat(conf.cargo_boleto_perdido) > 0) { %>· Boleto perdido: $<%= m(conf.cargo_boleto_perdido, 0) %> + tiempo<% } %>
+    </div>
+  <% } %>
+  <hr>
+  <div class="sm"><%= conf.ticket_leyenda %></div>
+
+<% } else if (t.estado === 'Pagado') { %>
+  <div>COMPROBANTE DE PAGO</div>
+  <div class="b"><%= t.folio %></div>
+  <div class="big pl"><%= t.placas %></div>
+  <div><%= t.tipo_vehiculo %><%= t.cliente ? ' · ' + t.cliente : '' %></div>
+  <hr>
+  <div class="r"><span>Entrada:</span><span><%= helpers.fmtDT(t.entrada_at) %></span></div>
+  <div class="r"><span>Salida:</span><span><%= helpers.fmtDT(t.salida_at) %></span></div>
+  <div class="r"><span>Tiempo:</span><span class="b"><%= fmtTiempo(t.minutos) %></span></div>
+  <hr>
+  <% if (t.tipo_cobro === 'Pension') { %>
+    <div class="b">PENSIÓN — SIN COSTO</div>
+  <% } else { %>
+    <div class="r"><span>Estacionamiento</span><span>$<%= m(t.monto_tiempo) %></span></div>
+    <% if (t.boleto_perdido) { %><div class="r"><span>Boleto perdido</span><span>$<%= m(t.cargo_extra) %></span></div><% } %>
+    <div class="r b" style="font-size:17px;margin-top:4px"><span>TOTAL</span><span>$<%= m(t.monto_cobrado) %></span></div>
+    <% if (parseFloat(t.monto_cobrado) > 0) { %>
+      <div class="r"><span>Forma de pago</span><span><%= t.metodo_pago %></span></div>
+      <% if (t.pago_recibido != null) { %>
+        <div class="r"><span>Recibido</span><span>$<%= m(t.pago_recibido) %></span></div>
+        <div class="r"><span>Cambio</span><span>$<%= m(t.cambio) %></span></div>
+      <% } %>
+    <% } else { %><div class="sm">Salida dentro del tiempo de tolerancia</div><% } %>
+  <% } %>
+  <hr>
+  <div class="r sm"><span>Cobró:</span><span><%= t.cajero_salida || '' %></span></div>
+  <div style="margin-top:6px">¡Gracias por su visita!</div>
+
+<% } else { %>
+  <div class="b">TICKET CANCELADO</div>
+  <div class="b"><%= t.folio %></div>
+  <div class="big pl"><%= t.placas %></div>
+  <div class="sm">Motivo: <%= t.cancel_motivo || '' %></div>
+<% } %>
+<hr>
+<div class="sm">Impreso: <%= impreso %></div>
+</body></html>
